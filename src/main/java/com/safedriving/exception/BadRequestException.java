@@ -1,4 +1,4 @@
-package com.safedriving.backend.exception;
+package com.safedriving.exception;
 
 public class BadRequestException extends RuntimeException {
     public BadRequestException(String message) {

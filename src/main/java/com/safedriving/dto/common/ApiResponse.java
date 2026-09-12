@@ -1,4 +1,4 @@
-package com.safedriving.backend.dto.common;
+package com.safedriving.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;

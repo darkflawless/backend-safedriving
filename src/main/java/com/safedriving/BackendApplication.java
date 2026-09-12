@@ -1,4 +1,4 @@
-package com.safedriving.backend;
+package com.safedriving;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
