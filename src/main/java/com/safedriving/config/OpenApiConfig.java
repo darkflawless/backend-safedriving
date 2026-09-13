@@ -35,6 +35,6 @@ public class OpenApiConfig {
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
                                 .bearerFormat("JWT")
-                                .description("Nhập Bearer Token theo định dạng: `Bearer <token>`")));
+                                .description("Dán trực tiếp Access Token (chuỗi JWT nhận được từ API /auth/login hoặc /auth/register). Swagger UI sẽ tự động thêm prefix 'Bearer '.")));
     }
 }
