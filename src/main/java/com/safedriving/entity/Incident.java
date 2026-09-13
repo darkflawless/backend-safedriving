@@ -2,6 +2,7 @@ package com.safedriving.entity;
 
 import com.safedriving.entity.enums.IncidentSeverity;
 import com.safedriving.entity.enums.IncidentType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -38,6 +39,7 @@ public class Incident extends BaseUuidEntity {
     @Enumerated(EnumType.STRING)
     private IncidentType type;
 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @NotNull(message = "Severity is required")

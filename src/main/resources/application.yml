@@ -37,7 +37,7 @@ logging:
 app:
   jwt:
     secret: "CHANGE_THIS_SECRET_KEY_TO_SOMETHING_LONG_AND_RANDOM_BEFORE_PRODUCTION_0123456789"
-    expiration-ms: 86400000 # 24h
+    expiration-ms: 3600000 # 1 giờ (JWT token ngắn hạn, stateless không lưu DB)
 
 springdoc:
   swagger-ui:

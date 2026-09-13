@@ -24,7 +24,7 @@ public class AuthResponse {
     @Schema(description = "Loại Token", example = "Bearer")
     private String tokenType = "Bearer";
 
-    @Schema(description = "Thời gian hết hạn của token (tính bằng milliseconds)", example = "86400000")
+    @Schema(description = "Thời gian hết hạn của token (tính bằng milliseconds)", example = "3600000")
     private Long expiresIn;
 
     @Schema(description = "ID của tài khoản")

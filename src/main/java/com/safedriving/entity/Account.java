@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.safedriving.entity.enums.AccountRole;
 import com.safedriving.entity.enums.AccountStatus;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -33,9 +34,6 @@ public class Account extends BaseUuidEntity {
     @NotBlank(message = "Password is required")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY) // nhận password khi tạo/sửa, nhưng không bao giờ trả về trong response
     private String password;
-
-    @JsonIgnore
-    private String token;
 
     @Enumerated(EnumType.STRING)
     @lombok.Builder.Default

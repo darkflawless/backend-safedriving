@@ -49,14 +49,13 @@ public class AuthServiceImpl implements AuthService {
 
         LocalDateTime now = LocalDateTime.now();
         account.setLastLoginAt(now);
+        accountRepository.save(account);
 
         String token = jwtTokenProvider.generateToken(
                 account.getUsername(),
                 account.getRole().name(),
                 account.getId()
         );
-        account.setToken(token);
-        accountRepository.save(account);
 
         log.info("Người dùng {} đăng nhập thành công với vai trò {}", account.getUsername(), account.getRole());
 
@@ -98,8 +97,6 @@ public class AuthServiceImpl implements AuthService {
                 savedAccount.getRole().name(),
                 savedAccount.getId()
         );
-        savedAccount.setToken(token);
-        accountRepository.save(savedAccount);
 
         log.info("Đăng ký thành công tài khoản mới: {} (ID: {}, Role: {})",
                 savedAccount.getUsername(), savedAccount.getId(), savedAccount.getRole());

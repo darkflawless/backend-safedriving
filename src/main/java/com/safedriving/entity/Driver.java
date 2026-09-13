@@ -1,5 +1,6 @@
 package com.safedriving.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -26,6 +27,7 @@ public class Driver extends BaseUuidEntity {
     @NotNull(message = "Hire date is required")
     private LocalDate hireDate;
 
+    @Column(columnDefinition = "TEXT")
     private String urlImage;
 
     @lombok.Builder.Default

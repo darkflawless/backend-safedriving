@@ -1,6 +1,7 @@
 package com.safedriving.entity;
 
 import com.safedriving.entity.enums.ViolationType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -50,5 +51,6 @@ public class Violation extends BaseUuidEntity {
 
     private BigDecimal penalty;
 
+    @Column(columnDefinition = "TEXT")
     private String note;
 }
