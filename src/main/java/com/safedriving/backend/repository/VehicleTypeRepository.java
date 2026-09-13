@@ -1,0 +1,10 @@
+package com.safedriving.backend.repository;
+
+import com.safedriving.backend.entity.VehicleType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface VehicleTypeRepository extends JpaRepository<VehicleType, Integer> {
+    boolean existsByCode(String code);
+}
