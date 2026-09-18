@@ -28,4 +28,13 @@ public class Device extends BaseUuidEntity {
 
     @lombok.Builder.Default
     private LocalDateTime startTime = LocalDateTime.now();
+
+    @jakarta.persistence.Column(unique = true)
+    private String serialNumber;
+
+    @jakarta.persistence.Column(unique = true)
+    private String macAddress;
+
+    @lombok.Builder.Default
+    private Boolean isDeleted = false;
 }
