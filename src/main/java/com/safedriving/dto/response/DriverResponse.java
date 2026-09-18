@@ -35,6 +35,4 @@ public class DriverResponse {
     @Schema(description = "Phương tiện được giao cho tài xế")
     private DriverVehicleInfo vehicle;
 
-    @Schema(description = "Hạng bằng lái xe của tài xế")
-    private LicenseClassResponse licenseClass;
 }

@@ -41,11 +41,7 @@ public class DriverRequest {
     @Schema(description = "ID xe được giao dạng phẳng (tùy chọn)")
     private String vehicleId;
 
-    @Schema(description = "Tham chiếu hạng giấy phép lái xe dạng { id: ... }")
-    private LicenseClassReference licenseClass;
 
-    @Schema(description = "ID hạng giấy phép lái xe dạng phẳng (tùy chọn)")
-    private Short licenseClassId;
 
     public String resolveStaffId() {
         if (staff != null && staff.getId() != null && !staff.getId().isBlank()) {
@@ -67,10 +63,5 @@ public class DriverRequest {
         return null;
     }
 
-    public Short resolveLicenseClassId() {
-        if (licenseClass != null && licenseClass.getShortId() != null) {
-            return licenseClass.getShortId();
-        }
-        return licenseClassId;
-    }
+
 }

@@ -4,19 +4,16 @@ import com.safedriving.dto.request.DriverRequest;
 import com.safedriving.dto.response.AddressResponse;
 import com.safedriving.dto.response.DriverResponse;
 import com.safedriving.dto.response.DriverVehicleInfo;
-import com.safedriving.dto.response.LicenseClassResponse;
 import com.safedriving.dto.response.StaffAccountInfo;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.Account;
 import com.safedriving.entity.Address;
 import com.safedriving.entity.Driver;
-import com.safedriving.entity.LicenseClass;
 import com.safedriving.entity.Staff;
 import com.safedriving.entity.Vehicle;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.DriverRepository;
-import com.safedriving.repository.LicenseClassRepository;
 import com.safedriving.repository.StaffRepository;
 import com.safedriving.repository.VehicleRepository;
 import com.safedriving.service.DriverService;
@@ -35,7 +32,6 @@ public class DriverServiceImpl implements DriverService {
     private final DriverRepository driverRepository;
     private final StaffRepository staffRepository;
     private final VehicleRepository vehicleRepository;
-    private final LicenseClassRepository licenseClassRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -78,12 +74,7 @@ public class DriverServiceImpl implements DriverService {
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
         }
 
-        LicenseClass licenseClass = null;
-        Short licenseClassId = request.resolveLicenseClassId();
-        if (licenseClassId != null) {
-            licenseClass = licenseClassRepository.findById(licenseClassId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hạng bằng lái với ID: " + licenseClassId));
-        }
+
 
         Driver driver = Driver.builder()
                 .hireDate(request.getHireDate())
@@ -91,7 +82,6 @@ public class DriverServiceImpl implements DriverService {
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .staff(staff)
                 .vehicle(vehicle)
-                .licenseClass(licenseClass)
                 .isDeleted(false)
                 .build();
 
@@ -128,14 +118,7 @@ public class DriverServiceImpl implements DriverService {
             driver.setVehicle(null);
         }
 
-        Short licenseClassId = request.resolveLicenseClassId();
-        if (licenseClassId != null) {
-            LicenseClass licenseClass = licenseClassRepository.findById(licenseClassId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hạng bằng lái với ID: " + licenseClassId));
-            driver.setLicenseClass(licenseClass);
-        } else if (request.getLicenseClass() != null || request.getLicenseClassId() != null) {
-            driver.setLicenseClass(null);
-        }
+
 
         if (request.getHireDate() != null) {
             driver.setHireDate(request.getHireDate());
@@ -222,16 +205,7 @@ public class DriverServiceImpl implements DriverService {
                     .build();
         }
 
-        LicenseClassResponse licenseClassResponse = null;
-        if (driver.getLicenseClass() != null) {
-            LicenseClass lc = driver.getLicenseClass();
-            licenseClassResponse = LicenseClassResponse.builder()
-                    .id(lc.getId())
-                    .code(lc.getCode())
-                    .name(lc.getName())
-                    .capacity(lc.getCapacity())
-                    .build();
-        }
+
 
         return DriverResponse.builder()
                 .id(driver.getId())
@@ -240,7 +214,6 @@ public class DriverServiceImpl implements DriverService {
                 .isActive(driver.getIsActive())
                 .staff(staffResponse)
                 .vehicle(vehicleInfo)
-                .licenseClass(licenseClassResponse)
                 .build();
     }
 }

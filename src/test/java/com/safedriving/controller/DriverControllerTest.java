@@ -5,7 +5,6 @@ import com.safedriving.dto.request.DriverRequest;
 import com.safedriving.dto.request.IdReference;
 import com.safedriving.dto.response.DriverResponse;
 import com.safedriving.dto.response.DriverVehicleInfo;
-import com.safedriving.dto.response.LicenseClassResponse;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.enums.Gender;
 import com.safedriving.entity.enums.VehicleStatus;
@@ -68,7 +67,6 @@ class DriverControllerTest {
                 .isActive(true)
                 .staff(StaffResponse.builder().id("staff-1").firstName("Van A").lastName("Nguyen").fullName("Van A Nguyen").gender(Gender.MALE).build())
                 .vehicle(DriverVehicleInfo.builder().id("veh-1").plateNumber("29B-12345").status(VehicleStatus.AVAILABLE).build())
-                .licenseClass(LicenseClassResponse.builder().id((short) 1).code("E").name("Hạng E").build())
                 .build();
 
         when(driverService.getAllDrivers()).thenReturn(List.of(response));

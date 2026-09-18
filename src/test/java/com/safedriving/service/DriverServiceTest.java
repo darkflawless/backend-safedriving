@@ -2,10 +2,8 @@ package com.safedriving.service;
 
 import com.safedriving.dto.request.DriverRequest;
 import com.safedriving.dto.request.IdReference;
-import com.safedriving.dto.request.LicenseClassReference;
 import com.safedriving.dto.response.DriverResponse;
 import com.safedriving.entity.Driver;
-import com.safedriving.entity.LicenseClass;
 import com.safedriving.entity.Staff;
 import com.safedriving.entity.Vehicle;
 import com.safedriving.entity.enums.Gender;
@@ -13,7 +11,6 @@ import com.safedriving.entity.enums.VehicleStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.DriverRepository;
-import com.safedriving.repository.LicenseClassRepository;
 import com.safedriving.repository.StaffRepository;
 import com.safedriving.repository.VehicleRepository;
 import com.safedriving.service.impl.DriverServiceImpl;
@@ -50,8 +47,7 @@ class DriverServiceTest {
     @Mock
     private VehicleRepository vehicleRepository;
 
-    @Mock
-    private LicenseClassRepository licenseClassRepository;
+
 
     @InjectMocks
     private DriverServiceImpl driverService;
@@ -59,7 +55,7 @@ class DriverServiceTest {
     private Driver testDriver;
     private Staff testStaff;
     private Vehicle testVehicle;
-    private LicenseClass testLicenseClass;
+
 
     @BeforeEach
     void setUp() {
@@ -80,12 +76,6 @@ class DriverServiceTest {
                 .status(VehicleStatus.AVAILABLE)
                 .build();
 
-        testLicenseClass = LicenseClass.builder()
-                .id((short) 1)
-                .code("E")
-                .name("Hạng E - Xe khách trên 30 chỗ")
-                .capacity(45)
-                .build();
 
         testDriver = Driver.builder()
                 .id("driver-1")
@@ -94,7 +84,6 @@ class DriverServiceTest {
                 .isActive(true)
                 .staff(testStaff)
                 .vehicle(testVehicle)
-                .licenseClass(testLicenseClass)
                 .isDeleted(false)
                 .build();
     }
@@ -111,7 +100,6 @@ class DriverServiceTest {
         assertEquals("driver-1", responses.get(0).getId());
         assertEquals("Van A", responses.get(0).getStaff().getFirstName());
         assertEquals("29B-12345", responses.get(0).getVehicle().getPlateNumber());
-        assertEquals("E", responses.get(0).getLicenseClass().getCode());
     }
 
     @Test
@@ -143,13 +131,12 @@ class DriverServiceTest {
                 .isActive(true)
                 .staff(IdReference.builder().id("staff-1").build())
                 .vehicle(IdReference.builder().id("veh-1").build())
-                .licenseClass(LicenseClassReference.builder().id(1).build())
                 .build();
 
         when(staffRepository.findById("staff-1")).thenReturn(Optional.of(testStaff));
         when(driverRepository.existsByStaffId("staff-1")).thenReturn(false);
         when(vehicleRepository.findByIdAndIsDeletedFalse("veh-1")).thenReturn(Optional.of(testVehicle));
-        when(licenseClassRepository.findById((short) 1)).thenReturn(Optional.of(testLicenseClass));
+
         when(driverRepository.save(any(Driver.class))).thenAnswer(invocation -> {
             Driver d = invocation.getArgument(0);
             d.setId("driver-2");
@@ -162,7 +149,6 @@ class DriverServiceTest {
         assertEquals("driver-2", response.getId());
         assertEquals("Van A", response.getStaff().getFirstName());
         assertEquals("29B-12345", response.getVehicle().getPlateNumber());
-        assertEquals("E", response.getLicenseClass().getCode());
         verify(driverRepository).save(any(Driver.class));
     }
 
