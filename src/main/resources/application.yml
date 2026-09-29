@@ -44,3 +44,9 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /api-docs
+
+# UDP Server nhận stream từ camera thiết bị trên xe
+udp:
+  camera:
+    port: 9090          # Cổng nhận UDP từ App
+    buffer-size: 65507  # Kích thước buffer tối đa của UDP packet
