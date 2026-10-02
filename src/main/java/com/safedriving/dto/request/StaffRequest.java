@@ -44,27 +44,20 @@ public class StaffRequest {
     @Schema(description = "Số điện thoại liên hệ", example = "0901234567")
     private String phone;
 
-    @Schema(description = "Đối tượng liên kết địa chỉ dạng { id: ... }")
-    private IdReference address;
+    @Schema(description = "Địa chỉ cụ thể (số nhà, ngõ, đường)", example = "123 Phố Huế")
+    private String exactAddress;
 
-    @Schema(description = "ID địa chỉ dạng phẳng (tùy chọn)")
-    private String addressId;
+    @Schema(description = "Phường/Xã", example = "Hàng Bài")
+    private String commune;
+
+    @Schema(description = "Tỉnh/Thành phố", example = "Hà Nội")
+    private String province;
 
     @Schema(description = "Đối tượng liên kết tài khoản dạng { id: ... }")
     private IdReference account;
 
     @Schema(description = "ID tài khoản dạng phẳng (tùy chọn)")
     private String accountId;
-
-    public String resolveAddressId() {
-        if (address != null && address.getId() != null && !address.getId().isBlank()) {
-            return address.getId().trim();
-        }
-        if (addressId != null && !addressId.isBlank()) {
-            return addressId.trim();
-        }
-        return null;
-    }
 
     public String resolveAccountId() {
         if (account != null && account.getId() != null && !account.getId().isBlank()) {

@@ -52,12 +52,20 @@ class AuthControllerTest {
     private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Test
-    @DisplayName("POST /auth/register - Đăng ký tài khoản thành công")
+    @DisplayName("POST /auth/register - Đăng ký tài khoản Quản lý thành công")
     void register_Success() throws Exception {
         RegisterRequest request = RegisterRequest.builder()
-                .username("driver_test")
+                .username("manager_test")
                 .password("password123")
-                .role(AccountRole.DRIVER)
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .dateOfBirth(java.time.LocalDate.of(1995, 5, 20))
+                .gender(com.safedriving.entity.enums.Gender.MALE)
+                .phone("0901234567")
+                .email("manager@example.com")
+                .exactAddress("123 Phố Huế")
+                .commune("Hàng Bài")
+                .province("Hà Nội")
                 .build();
 
         AuthResponse authResponse = AuthResponse.builder()
@@ -65,8 +73,8 @@ class AuthControllerTest {
                 .tokenType("Bearer")
                 .expiresIn(86400000L)
                 .accountId("mock-id")
-                .username("driver_test")
-                .role(AccountRole.DRIVER)
+                .username("manager_test")
+                .role(AccountRole.MANAGER)
                 .status(AccountStatus.ACTIVE)
                 .build();
 
@@ -79,17 +87,20 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Đăng ký tài khoản thành công"))
                 .andExpect(jsonPath("$.data.accessToken").value("mock-jwt-token"))
-                .andExpect(jsonPath("$.data.username").value("driver_test"))
-                .andExpect(jsonPath("$.data.role").value("DRIVER"));
+                .andExpect(jsonPath("$.data.username").value("manager_test"))
+                .andExpect(jsonPath("$.data.role").value("MANAGER"));
     }
 
     @Test
     @DisplayName("POST /auth/register - Đăng ký thất bại khi username đã tồn tại")
     void register_UsernameExists() throws Exception {
         RegisterRequest request = RegisterRequest.builder()
-                .username("driver_test")
+                .username("manager_test")
                 .password("password123")
-                .role(AccountRole.DRIVER)
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .dateOfBirth(java.time.LocalDate.of(1995, 5, 20))
+                .phone("0901234567")
                 .build();
 
         when(authService.register(any(RegisterRequest.class)))

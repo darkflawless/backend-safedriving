@@ -3,7 +3,6 @@ package com.safedriving.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.safedriving.dto.request.IdReference;
 import com.safedriving.dto.request.StaffRequest;
-import com.safedriving.dto.response.AddressResponse;
 import com.safedriving.dto.response.StaffAccountInfo;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.enums.AccountRole;
@@ -92,7 +91,9 @@ class StaffControllerTest {
                 .firstName("Van A")
                 .lastName("Nguyen")
                 .fullName("Van A Nguyen")
-                .address(AddressResponse.builder().id("addr-1").exactAddress("123 Phố Huế").build())
+                .exactAddress("123 Phố Huế")
+                .commune("Hàng Bài")
+                .province("Hà Nội")
                 .account(StaffAccountInfo.builder().id("acc-1").username("vana").role(AccountRole.ADMIN).status(AccountStatus.ACTIVE).build())
                 .build();
 
@@ -102,7 +103,9 @@ class StaffControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.id").value("staff-1"))
-                .andExpect(jsonPath("$.data.address.exactAddress").value("123 Phố Huế"))
+                .andExpect(jsonPath("$.data.exactAddress").value("123 Phố Huế"))
+                .andExpect(jsonPath("$.data.commune").value("Hàng Bài"))
+                .andExpect(jsonPath("$.data.province").value("Hà Nội"))
                 .andExpect(jsonPath("$.data.account.username").value("vana"));
     }
 
@@ -128,7 +131,9 @@ class StaffControllerTest {
                 .gender(Gender.MALE)
                 .email("vana@example.com")
                 .phone("0901234567")
-                .address(IdReference.builder().id("addr-1").build())
+                .exactAddress("123 Phố Huế")
+                .commune("Hàng Bài")
+                .province("Hà Nội")
                 .account(IdReference.builder().id("acc-1").build())
                 .build();
 

@@ -46,7 +46,7 @@ public class StaffController {
     }
 
     @PostMapping
-    @Operation(summary = "Tạo mới hồ sơ nhân sự", description = "Tạo mới hồ sơ nhân sự (Họ tên, ngày sinh, giới tính, email, số điện thoại, liên kết tài khoản account và địa chỉ address).")
+    @Operation(summary = "Tạo mới hồ sơ nhân sự", description = "Tạo mới hồ sơ nhân sự (Họ tên, ngày sinh, giới tính, email, số điện thoại, địa chỉ và liên kết tài khoản account).")
     public ResponseEntity<ApiResponse<StaffResponse>> createStaff(@Valid @RequestBody StaffRequest request) {
         StaffResponse response = staffService.createStaff(request);
         return ResponseEntity.status(HttpStatus.CREATED)

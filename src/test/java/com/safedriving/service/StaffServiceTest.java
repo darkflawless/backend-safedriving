@@ -4,7 +4,6 @@ import com.safedriving.dto.request.IdReference;
 import com.safedriving.dto.request.StaffRequest;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.Account;
-import com.safedriving.entity.Address;
 import com.safedriving.entity.Staff;
 import com.safedriving.entity.enums.AccountRole;
 import com.safedriving.entity.enums.AccountStatus;
@@ -12,7 +11,6 @@ import com.safedriving.entity.enums.Gender;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AccountRepository;
-import com.safedriving.repository.AddressRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.StaffRepository;
 import com.safedriving.service.impl.StaffServiceImpl;
@@ -44,9 +42,6 @@ class StaffServiceTest {
     private StaffRepository staffRepository;
 
     @Mock
-    private AddressRepository addressRepository;
-
-    @Mock
     private AccountRepository accountRepository;
 
     @Mock
@@ -56,18 +51,10 @@ class StaffServiceTest {
     private StaffServiceImpl staffService;
 
     private Staff testStaff;
-    private Address testAddress;
     private Account testAccount;
 
     @BeforeEach
     void setUp() {
-        testAddress = Address.builder()
-                .id("addr-1")
-                .exactAddress("123 Phố Huế")
-                .commune("Hàng Bài")
-                .province("Hà Nội")
-                .build();
-
         testAccount = Account.builder()
                 .id("acc-1")
                 .username("vana")
@@ -83,7 +70,9 @@ class StaffServiceTest {
                 .gender(Gender.MALE)
                 .email("vana@example.com")
                 .phone("0901234567")
-                .address(testAddress)
+                .exactAddress("123 Phố Huế")
+                .commune("Hàng Bài")
+                .province("Hà Nội")
                 .account(testAccount)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -101,8 +90,9 @@ class StaffServiceTest {
         assertEquals("Van A", responses.get(0).getFirstName());
         assertEquals("Van A Nguyen", responses.get(0).getFullName());
         assertEquals("vana@example.com", responses.get(0).getEmail());
-        assertNotNull(responses.get(0).getAddress());
-        assertEquals("123 Phố Huế", responses.get(0).getAddress().getExactAddress());
+        assertEquals("123 Phố Huế", responses.get(0).getExactAddress());
+        assertEquals("Hàng Bài", responses.get(0).getCommune());
+        assertEquals("Hà Nội", responses.get(0).getProvince());
         assertNotNull(responses.get(0).getAccount());
         assertEquals("vana", responses.get(0).getAccount().getUsername());
     }
@@ -128,7 +118,7 @@ class StaffServiceTest {
     }
 
     @Test
-    @DisplayName("createStaff - Tạo nhân sự thành công với nested id object")
+    @DisplayName("createStaff - Tạo nhân sự thành công với địa chỉ và tài khoản")
     void createStaff_Success() {
         StaffRequest request = StaffRequest.builder()
                 .firstName("Thi B")
@@ -137,11 +127,12 @@ class StaffServiceTest {
                 .gender(Gender.FEMALE)
                 .email("thib@example.com")
                 .phone("0987654321")
-                .address(IdReference.builder().id("addr-1").build())
+                .exactAddress("456 Cầu Giấy")
+                .commune("Dịch Vọng")
+                .province("Hà Nội")
                 .account(IdReference.builder().id("acc-1").build())
                 .build();
 
-        when(addressRepository.findById("addr-1")).thenReturn(Optional.of(testAddress));
         when(accountRepository.findById("acc-1")).thenReturn(Optional.of(testAccount));
         when(staffRepository.existsByAccountId("acc-1")).thenReturn(false);
         when(staffRepository.save(any(Staff.class))).thenAnswer(invocation -> {
@@ -156,6 +147,9 @@ class StaffServiceTest {
         assertEquals("staff-2", response.getId());
         assertEquals("Thi B Tran", response.getFullName());
         assertEquals(Gender.FEMALE, response.getGender());
+        assertEquals("456 Cầu Giấy", response.getExactAddress());
+        assertEquals("Dịch Vọng", response.getCommune());
+        assertEquals("Hà Nội", response.getProvince());
         verify(staffRepository).save(any(Staff.class));
     }
 
@@ -198,7 +192,9 @@ class StaffServiceTest {
 
         assertNotNull(response);
         assertEquals("staff-3", response.getId());
-        assertNull(response.getAddress());
+        assertNull(response.getExactAddress());
+        assertNull(response.getCommune());
+        assertNull(response.getProvince());
         assertNull(response.getAccount());
     }
 
@@ -212,12 +208,13 @@ class StaffServiceTest {
                 .gender(Gender.MALE)
                 .email("vana_new@example.com")
                 .phone("0909999999")
-                .address(IdReference.builder().id("addr-1").build())
+                .exactAddress("789 Kim Mã")
+                .commune("Ngọc Khánh")
+                .province("Hà Nội")
                 .account(IdReference.builder().id("acc-1").build())
                 .build();
 
         when(staffRepository.findById("staff-1")).thenReturn(Optional.of(testStaff));
-        when(addressRepository.findById("addr-1")).thenReturn(Optional.of(testAddress));
         when(accountRepository.findById("acc-1")).thenReturn(Optional.of(testAccount));
         when(staffRepository.existsByAccountIdAndIdNot("acc-1", "staff-1")).thenReturn(false);
         when(staffRepository.save(any(Staff.class))).thenReturn(testStaff);

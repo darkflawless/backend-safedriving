@@ -43,8 +43,14 @@ public class StaffResponse {
     @Schema(description = "Số điện thoại")
     private String phone;
 
-    @Schema(description = "Thông tin địa chỉ nơi ở/thường trú")
-    private AddressResponse address;
+    @Schema(description = "Địa chỉ cụ thể")
+    private String exactAddress;
+
+    @Schema(description = "Phường/Xã")
+    private String commune;
+
+    @Schema(description = "Tỉnh/Thành phố")
+    private String province;
 
     @Schema(description = "Thông tin tài khoản đăng nhập")
     private StaffAccountInfo account;

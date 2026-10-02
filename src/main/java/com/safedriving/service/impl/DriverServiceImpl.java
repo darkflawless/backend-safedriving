@@ -1,13 +1,11 @@
 package com.safedriving.service.impl;
 
 import com.safedriving.dto.request.DriverRequest;
-import com.safedriving.dto.response.AddressResponse;
 import com.safedriving.dto.response.DriverResponse;
 import com.safedriving.dto.response.DriverVehicleInfo;
 import com.safedriving.dto.response.StaffAccountInfo;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.Account;
-import com.safedriving.entity.Address;
 import com.safedriving.entity.Driver;
 import com.safedriving.entity.Staff;
 import com.safedriving.entity.Vehicle;
@@ -154,19 +152,6 @@ public class DriverServiceImpl implements DriverService {
         StaffResponse staffResponse = null;
         if (driver.getStaff() != null) {
             Staff staff = driver.getStaff();
-            AddressResponse addressResponse = null;
-            if (staff.getAddress() != null) {
-                Address addr = staff.getAddress();
-                addressResponse = AddressResponse.builder()
-                        .id(addr.getId())
-                        .exactAddress(addr.getExactAddress())
-                        .commune(addr.getCommune())
-                        .province(addr.getProvince())
-                        .lat(addr.getLat())
-                        .lng(addr.getLng())
-                        .build();
-            }
-
             StaffAccountInfo accountInfo = null;
             if (staff.getAccount() != null) {
                 Account acc = staff.getAccount();
@@ -187,7 +172,9 @@ public class DriverServiceImpl implements DriverService {
                     .gender(staff.getGender())
                     .email(staff.getEmail())
                     .phone(staff.getPhone())
-                    .address(addressResponse)
+                    .exactAddress(staff.getExactAddress())
+                    .commune(staff.getCommune())
+                    .province(staff.getProvince())
                     .account(accountInfo)
                     .createdAt(staff.getCreatedAt())
                     .build();

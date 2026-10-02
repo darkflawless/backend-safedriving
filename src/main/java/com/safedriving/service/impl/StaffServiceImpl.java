@@ -1,16 +1,13 @@
 package com.safedriving.service.impl;
 
 import com.safedriving.dto.request.StaffRequest;
-import com.safedriving.dto.response.AddressResponse;
 import com.safedriving.dto.response.StaffAccountInfo;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.Account;
-import com.safedriving.entity.Address;
 import com.safedriving.entity.Staff;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AccountRepository;
-import com.safedriving.repository.AddressRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.StaffRepository;
 import com.safedriving.service.StaffService;
@@ -28,7 +25,6 @@ import java.util.List;
 public class StaffServiceImpl implements StaffService {
 
     private final StaffRepository staffRepository;
-    private final AddressRepository addressRepository;
     private final AccountRepository accountRepository;
     private final DriverRepository driverRepository;
 
@@ -54,13 +50,6 @@ public class StaffServiceImpl implements StaffService {
     public StaffResponse createStaff(StaffRequest request) {
         log.info("Tạo mới hồ sơ nhân sự: {} {}", request.getFirstName(), request.getLastName());
 
-        Address address = null;
-        String addressId = request.resolveAddressId();
-        if (addressId != null) {
-            address = addressRepository.findById(addressId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ với ID: " + addressId));
-        }
-
         Account account = null;
         String accountId = request.resolveAccountId();
         if (accountId != null) {
@@ -79,7 +68,9 @@ public class StaffServiceImpl implements StaffService {
                 .gender(request.getGender())
                 .email(request.getEmail() != null ? request.getEmail().trim() : null)
                 .phone(request.getPhone().trim())
-                .address(address)
+                .exactAddress(request.getExactAddress() != null ? request.getExactAddress().trim() : null)
+                .commune(request.getCommune() != null ? request.getCommune().trim() : null)
+                .province(request.getProvince() != null ? request.getProvince().trim() : null)
                 .account(account)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -94,13 +85,6 @@ public class StaffServiceImpl implements StaffService {
     public StaffResponse updateStaff(String id, StaffRequest request) {
         log.info("Cập nhật hồ sơ nhân sự với ID: {}", id);
         Staff staff = findStaffOrThrow(id);
-
-        Address address = null;
-        String addressId = request.resolveAddressId();
-        if (addressId != null) {
-            address = addressRepository.findById(addressId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy địa chỉ với ID: " + addressId));
-        }
 
         Account account = null;
         String accountId = request.resolveAccountId();
@@ -119,7 +103,9 @@ public class StaffServiceImpl implements StaffService {
         staff.setGender(request.getGender());
         staff.setEmail(request.getEmail() != null ? request.getEmail().trim() : null);
         staff.setPhone(request.getPhone().trim());
-        staff.setAddress(address);
+        staff.setExactAddress(request.getExactAddress() != null ? request.getExactAddress().trim() : null);
+        staff.setCommune(request.getCommune() != null ? request.getCommune().trim() : null);
+        staff.setProvince(request.getProvince() != null ? request.getProvince().trim() : null);
         staff.setAccount(account);
 
         Staff updated = staffRepository.save(staff);
@@ -147,19 +133,6 @@ public class StaffServiceImpl implements StaffService {
     }
 
     private StaffResponse toResponse(Staff staff) {
-        AddressResponse addressResponse = null;
-        if (staff.getAddress() != null) {
-            Address addr = staff.getAddress();
-            addressResponse = AddressResponse.builder()
-                    .id(addr.getId())
-                    .exactAddress(addr.getExactAddress())
-                    .commune(addr.getCommune())
-                    .province(addr.getProvince())
-                    .lat(addr.getLat())
-                    .lng(addr.getLng())
-                    .build();
-        }
-
         StaffAccountInfo accountInfo = null;
         if (staff.getAccount() != null) {
             Account acc = staff.getAccount();
@@ -180,7 +153,9 @@ public class StaffServiceImpl implements StaffService {
                 .gender(staff.getGender())
                 .email(staff.getEmail())
                 .phone(staff.getPhone())
-                .address(addressResponse)
+                .exactAddress(staff.getExactAddress())
+                .commune(staff.getCommune())
+                .province(staff.getProvince())
                 .account(accountInfo)
                 .createdAt(staff.getCreatedAt())
                 .build();
