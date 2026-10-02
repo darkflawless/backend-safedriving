@@ -3,11 +3,15 @@ package com.safedriving.service.impl;
 import com.safedriving.dto.request.LoginRequest;
 import com.safedriving.dto.request.RegisterRequest;
 import com.safedriving.dto.response.AuthResponse;
+import com.safedriving.dto.response.StaffAccountInfo;
+import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.Account;
+import com.safedriving.entity.Staff;
 import com.safedriving.entity.enums.AccountRole;
 import com.safedriving.entity.enums.AccountStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.repository.AccountRepository;
+import com.safedriving.repository.StaffRepository;
 import com.safedriving.security.JwtTokenProvider;
 import com.safedriving.service.AuthService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +28,7 @@ import java.time.LocalDateTime;
 public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accountRepository;
+    private final StaffRepository staffRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -59,6 +64,10 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("Người dùng {} đăng nhập thành công với vai trò {}", account.getUsername(), account.getRole());
 
+        StaffResponse staffResponse = staffRepository.findByAccountId(account.getId())
+                .map(this::toStaffResponse)
+                .orElse(null);
+
         return AuthResponse.builder()
                 .accessToken(token)
                 .tokenType("Bearer")
@@ -68,29 +77,59 @@ public class AuthServiceImpl implements AuthService {
                 .role(account.getRole())
                 .status(account.getStatus())
                 .lastLoginAt(now)
+                .staff(staffResponse)
                 .build();
     }
 
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        log.info("Xử lý đăng ký tài khoản mới: {}", request.getUsername());
+        log.info("Xử lý đăng ký tài khoản Quản lý mới: {}", request.getUsername());
 
-        if (accountRepository.existsByUsername(request.getUsername())) {
+        String username = request.getUsername().trim();
+        if (accountRepository.existsByUsername(username)) {
             throw new BadRequestException("Tên đăng nhập đã tồn tại trong hệ thống");
         }
 
-        AccountRole role = request.getRole() != null ? request.getRole() : AccountRole.DRIVER;
+        String phone = request.getPhone().trim();
+        if (staffRepository.existsByPhone(phone)) {
+            throw new BadRequestException("Số điện thoại đã được sử dụng bởi một nhân sự khác");
+        }
 
+        String email = request.getEmail() != null && !request.getEmail().isBlank()
+                ? request.getEmail().trim()
+                : null;
+        if (email != null && staffRepository.existsByEmail(email)) {
+            throw new BadRequestException("Email đã được sử dụng bởi một nhân sự khác");
+        }
+
+        // Tạo tài khoản với vai trò mặc định là MANAGER
         Account account = Account.builder()
-                .username(request.getUsername().trim())
+                .username(username)
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(role)
+                .role(AccountRole.MANAGER)
                 .status(AccountStatus.ACTIVE)
                 .isDeleted(false)
                 .build();
 
         Account savedAccount = accountRepository.save(account);
+
+        // Tạo hồ sơ nhân sự (Staff) liên kết 1-1 với tài khoản vừa tạo
+        Staff staff = Staff.builder()
+                .firstName(request.getFirstName().trim())
+                .lastName(request.getLastName().trim())
+                .dateOfBirth(request.getDateOfBirth())
+                .gender(request.getGender())
+                .phone(phone)
+                .email(email)
+                .exactAddress(request.getExactAddress() != null ? request.getExactAddress().trim() : null)
+                .commune(request.getCommune() != null ? request.getCommune().trim() : null)
+                .province(request.getProvince() != null ? request.getProvince().trim() : null)
+                .account(savedAccount)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Staff savedStaff = staffRepository.save(staff);
 
         String token = jwtTokenProvider.generateToken(
                 savedAccount.getUsername(),
@@ -98,8 +137,8 @@ public class AuthServiceImpl implements AuthService {
                 savedAccount.getId()
         );
 
-        log.info("Đăng ký thành công tài khoản mới: {} (ID: {}, Role: {})",
-                savedAccount.getUsername(), savedAccount.getId(), savedAccount.getRole());
+        log.info("Đăng ký thành công tài khoản Quản lý: {} (Account ID: {}, Staff ID: {}, Role: {})",
+                savedAccount.getUsername(), savedAccount.getId(), savedStaff.getId(), savedAccount.getRole());
 
         return AuthResponse.builder()
                 .accessToken(token)
@@ -110,6 +149,36 @@ public class AuthServiceImpl implements AuthService {
                 .role(savedAccount.getRole())
                 .status(savedAccount.getStatus())
                 .lastLoginAt(savedAccount.getLastLoginAt())
+                .staff(toStaffResponse(savedStaff))
+                .build();
+    }
+
+    private StaffResponse toStaffResponse(Staff staff) {
+        StaffAccountInfo accountInfo = null;
+        if (staff.getAccount() != null) {
+            Account acc = staff.getAccount();
+            accountInfo = StaffAccountInfo.builder()
+                    .id(acc.getId())
+                    .username(acc.getUsername())
+                    .role(acc.getRole())
+                    .status(acc.getStatus())
+                    .build();
+        }
+
+        return StaffResponse.builder()
+                .id(staff.getId())
+                .firstName(staff.getFirstName())
+                .lastName(staff.getLastName())
+                .fullName(staff.getFirstName() + " " + staff.getLastName())
+                .dateOfBirth(staff.getDateOfBirth())
+                .gender(staff.getGender())
+                .email(staff.getEmail())
+                .phone(staff.getPhone())
+                .exactAddress(staff.getExactAddress())
+                .commune(staff.getCommune())
+                .province(staff.getProvince())
+                .account(accountInfo)
+                .createdAt(staff.getCreatedAt())
                 .build();
     }
 }

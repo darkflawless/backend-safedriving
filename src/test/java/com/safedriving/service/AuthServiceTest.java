@@ -8,6 +8,7 @@ import com.safedriving.entity.enums.AccountRole;
 import com.safedriving.entity.enums.AccountStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.repository.AccountRepository;
+import com.safedriving.repository.StaffRepository;
 import com.safedriving.security.JwtTokenProvider;
 import com.safedriving.service.impl.AuthServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +37,9 @@ class AuthServiceTest {
     private AccountRepository accountRepository;
 
     @Mock
+    private StaffRepository staffRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -59,20 +63,35 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("Register - Thành công khi username chưa tồn tại")
+    @DisplayName("Register - Thành công tạo tài khoản MANAGER và hồ sơ Staff khi thông tin hợp lệ")
     void register_Success() {
         RegisterRequest request = RegisterRequest.builder()
-                .username("newuser")
+                .username("newmanager")
                 .password("plainPassword")
-                .role(AccountRole.DRIVER)
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .dateOfBirth(java.time.LocalDate.of(1990, 1, 1))
+                .gender(com.safedriving.entity.enums.Gender.MALE)
+                .phone("0901234567")
+                .email("manager@example.com")
+                .exactAddress("123 Phố Huế")
+                .commune("Hàng Bài")
+                .province("Hà Nội")
                 .build();
 
-        when(accountRepository.existsByUsername("newuser")).thenReturn(false);
+        when(accountRepository.existsByUsername("newmanager")).thenReturn(false);
+        when(staffRepository.existsByPhone("0901234567")).thenReturn(false);
+        when(staffRepository.existsByEmail("manager@example.com")).thenReturn(false);
         when(passwordEncoder.encode("plainPassword")).thenReturn("encodedPassword");
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
             Account acc = invocation.getArgument(0);
             acc.setId("new-uuid-456");
             return acc;
+        });
+        when(staffRepository.save(any(com.safedriving.entity.Staff.class))).thenAnswer(invocation -> {
+            com.safedriving.entity.Staff s = invocation.getArgument(0);
+            s.setId("staff-uuid-789");
+            return s;
         });
         when(jwtTokenProvider.generateToken(anyString(), anyString(), anyString())).thenReturn("generated-jwt-token");
         when(jwtTokenProvider.getJwtExpirationMs()).thenReturn(86400000L);
@@ -81,9 +100,13 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("generated-jwt-token", response.getAccessToken());
-        assertEquals("newuser", response.getUsername());
-        assertEquals(AccountRole.DRIVER, response.getRole());
-        verify(accountRepository).existsByUsername("newuser");
+        assertEquals("newmanager", response.getUsername());
+        assertEquals(AccountRole.MANAGER, response.getRole());
+        assertNotNull(response.getStaff());
+        assertEquals("staff-uuid-789", response.getStaff().getId());
+        assertEquals("Van A Nguyen", response.getStaff().getFullName());
+        verify(accountRepository).existsByUsername("newmanager");
+        verify(staffRepository).save(any(com.safedriving.entity.Staff.class));
     }
 
     @Test
@@ -92,10 +115,31 @@ class AuthServiceTest {
         RegisterRequest request = RegisterRequest.builder()
                 .username("testuser")
                 .password("plainPassword")
-                .role(AccountRole.DRIVER)
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .dateOfBirth(java.time.LocalDate.of(1990, 1, 1))
+                .phone("0901234567")
                 .build();
 
         when(accountRepository.existsByUsername("testuser")).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> authService.register(request));
+    }
+
+    @Test
+    @DisplayName("Register - Thất bại khi số điện thoại đã tồn tại ở nhân sự khác")
+    void register_ThrowsBadRequestException_WhenPhoneExists() {
+        RegisterRequest request = RegisterRequest.builder()
+                .username("newmanager")
+                .password("plainPassword")
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .dateOfBirth(java.time.LocalDate.of(1990, 1, 1))
+                .phone("0901234567")
+                .build();
+
+        when(accountRepository.existsByUsername("newmanager")).thenReturn(false);
+        when(staffRepository.existsByPhone("0901234567")).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> authService.register(request));
     }

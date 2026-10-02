@@ -45,9 +45,11 @@ public class Staff extends BaseUuidEntity {
     @NotBlank(message = "Phone is required")
     private String phone;
 
-    @ManyToOne
-    @JoinColumn(name = "address_id")
-    private Address address;
+    private String exactAddress;
+
+    private String commune;
+
+    private String province;
 
     @OneToOne
     @JoinColumn(name = "account_id", unique = true)

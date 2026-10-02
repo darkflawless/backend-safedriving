@@ -42,9 +42,6 @@ public class Driver extends BaseUuidEntity {
     @JoinColumn(name = "vehicle_id")
     private Vehicle vehicle;
 
-    @ManyToOne
-    @JoinColumn(name = "license_class_id")
-    private LicenseClass licenseClass;
 
     @lombok.Builder.Default
     private Boolean isDeleted = false;

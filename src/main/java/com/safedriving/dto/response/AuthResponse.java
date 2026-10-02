@@ -41,4 +41,7 @@ public class AuthResponse {
 
     @Schema(description = "Thời gian đăng nhập gần nhất")
     private LocalDateTime lastLoginAt;
+
+    @Schema(description = "Thông tin hồ sơ nhân sự liên kết (nếu có)")
+    private StaffResponse staff;
 }
