@@ -52,4 +52,22 @@ springdoc:
 
 # Cấu hình kết nối FastAPI Nhận diện khuôn mặt
 face-recognition:
-  base-url: http://localhost:8000
+  base-url: ${FACE_RECOGNITION_URL:http://localhost:8000}
+
+# Cấu hình MQTT Broker (EMQX)
+mqtt:
+  enabled: ${MQTT_ENABLED:true}
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:safedriving-backend}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+  default-topic: ${MQTT_DEFAULT_TOPIC:driverguard/#}
+  qos: ${MQTT_QOS:1}
+
+# Cấu hình MinIO S3 Storage
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  bucket-name: ${MINIO_BUCKET_NAME:driverguard-media}
+  expiry-seconds: ${MINIO_EXPIRY_SECONDS:3600}

@@ -17,11 +17,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.safedriving.security.CustomUserDetails;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping({"/auth", "/api/v1/auth"})
 @RequiredArgsConstructor
 @Tag(name = "Authentication & System", description = "APIs Xác thực người dùng, cấp phát JWT Token và kiểm tra hệ thống")
 public class AuthController {
@@ -33,6 +35,13 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", response));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Lấy thông tin tài khoản hiện tại", description = "Lấy thông tin profile người dùng từ Bearer Token hiện tại.")
+    public ResponseEntity<ApiResponse<AuthResponse>> getMe(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        AuthResponse response = authService.getMe(userDetails);
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin tài khoản thành công", response));
     }
 
     @PostMapping("/register")
@@ -51,5 +60,19 @@ public class AuthController {
                 "service", "Safe Driving Authentication Service",
                 "timestamp", LocalDateTime.now()
         )));
+    }
+
+    @GetMapping("/debug-demo")
+    @Operation(summary = "Endpoint thử nghiệm Debug", description = "Mô phỏng lỗi thuật toán vòng lặp để thực hành Debug với Breakpoint")
+    public ResponseEntity<ApiResponse<Integer>> debugDemo() {
+        int[] scores = {85, 90, 78, 92, 88}; // Danh sách 5 điểm đánh giá của tài xế
+        int totalScore = 0;
+
+        // CỐ TÌNH TẠO LỖI THUẬT TOÁN (Off-by-one): mảng có 5 phần tử (index 0..4) nhưng duyệt tới index 5
+        for (int i = 0; i <= scores.length; i++) {
+            totalScore += scores[i]; // <-- BẠN HÃY ĐẶT BREAKPOINT TẠI DÒNG NÀY ĐỂ SOI BIẾN!
+        }
+
+        return ResponseEntity.ok(ApiResponse.success("Tính điểm thành công", totalScore));
     }
 }

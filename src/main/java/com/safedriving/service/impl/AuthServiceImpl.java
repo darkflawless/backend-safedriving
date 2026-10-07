@@ -12,6 +12,11 @@ import com.safedriving.entity.enums.AccountStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.repository.AccountRepository;
 import com.safedriving.repository.StaffRepository;
+import com.safedriving.dto.response.VehicleBasicResponse;
+import com.safedriving.entity.Driver;
+import com.safedriving.entity.Vehicle;
+import com.safedriving.repository.DriverRepository;
+import com.safedriving.security.CustomUserDetails;
 import com.safedriving.security.JwtTokenProvider;
 import com.safedriving.service.AuthService;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +34,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final AccountRepository accountRepository;
     private final StaffRepository staffRepository;
+    private final DriverRepository driverRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -68,6 +74,8 @@ public class AuthServiceImpl implements AuthService {
                 .map(this::toStaffResponse)
                 .orElse(null);
 
+        VehicleBasicResponse assignedVehicle = getAssignedVehicleForAccount(account);
+
         return AuthResponse.builder()
                 .accessToken(token)
                 .tokenType("Bearer")
@@ -78,7 +86,48 @@ public class AuthServiceImpl implements AuthService {
                 .status(account.getStatus())
                 .lastLoginAt(now)
                 .staff(staffResponse)
+                .assignedVehicle(assignedVehicle)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AuthResponse getMe(CustomUserDetails userDetails) {
+        Account account = userDetails.getAccount();
+        StaffResponse staffResponse = staffRepository.findByAccountId(account.getId())
+                .map(this::toStaffResponse)
+                .orElse(null);
+
+        VehicleBasicResponse assignedVehicle = getAssignedVehicleForAccount(account);
+
+        return AuthResponse.builder()
+                .accountId(account.getId())
+                .username(account.getUsername())
+                .role(account.getRole())
+                .status(account.getStatus())
+                .lastLoginAt(account.getLastLoginAt())
+                .staff(staffResponse)
+                .assignedVehicle(assignedVehicle)
+                .build();
+    }
+
+    private VehicleBasicResponse getAssignedVehicleForAccount(Account account) {
+        if (account.getRole() != AccountRole.DRIVER) {
+            return null;
+        }
+        return driverRepository.findByStaffAccountIdAndIsDeletedFalse(account.getId())
+                .map(driver -> {
+                    Vehicle vehicle = driver.getVehicle();
+                    if (vehicle == null) return null;
+                    String model = (vehicle.getVehicleType() != null) ? vehicle.getVehicleType().getName() : "Standard";
+                    return VehicleBasicResponse.builder()
+                            .id(vehicle.getId())
+                            .plateNumber(vehicle.getPlateNumber())
+                            .model(model)
+                            .status(vehicle.getStatus() != null ? vehicle.getStatus().name() : null)
+                            .build();
+                })
+                .orElse(null);
     }
 
     @Override
