@@ -19,46 +19,61 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 import java.util.List;
 
+/**
+ * Controller quản lý loại phương tiện (Vehicle Type).
+ *
+ * @author phanthuy0811
+ */
 @RestController
-@RequestMapping("/vehicle-types")
+@RequestMapping({"/vehicle-types", "/api/v1/vehicle-types"})
 @RequiredArgsConstructor
-@Tag(name = "02. Vehicle Types", description = "Quản lý loại phương tiện (16 chỗ, 29 chỗ, 45 chỗ...)")
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+@Tag(name = "Vehicle Type Management", description = "APIs Quản lý danh mục loại xe (chỗ ngồi, phân loại)")
 public class VehicleTypeController {
 
     private final VehicleTypeService vehicleTypeService;
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách tất cả loại xe")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'DRIVER')")
+    @Operation(summary = "Xem danh sách loại xe", description = "Lấy toàn bộ danh mục loại xe trong hệ thống.")
     public ResponseEntity<ApiResponse<List<VehicleTypeResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách loại xe thành công", vehicleTypeService.getAll()));
+        List<VehicleTypeResponse> list = vehicleTypeService.getAll();
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách loại xe thành công", list));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Lấy chi tiết loại xe theo ID")
-    public ResponseEntity<ApiResponse<VehicleTypeResponse>> getById(@PathVariable Integer id) {
-        return ResponseEntity.ok(ApiResponse.success("Lấy chi tiết loại xe thành công", vehicleTypeService.getById(id)));
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'DRIVER')")
+    @Operation(summary = "Xem chi tiết một loại xe theo ID")
+    public ResponseEntity<ApiResponse<VehicleTypeResponse>> getById(@PathVariable Short id) {
+        VehicleTypeResponse response = vehicleTypeService.getById(id);
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin loại xe thành công", response));
     }
 
     @PostMapping
-    @Operation(summary = "Thêm loại xe mới")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Thêm mới loại xe", description = "Tạo một loại xe mới (ADMIN, MANAGER)")
     public ResponseEntity<ApiResponse<VehicleTypeResponse>> create(@Valid @RequestBody VehicleTypeRequest request) {
+        VehicleTypeResponse response = vehicleTypeService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Tạo loại xe mới thành công", vehicleTypeService.create(request)));
+                .body(ApiResponse.success("Thêm mới loại xe thành công", response));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Cập nhật loại xe")
-    public ResponseEntity<ApiResponse<VehicleTypeResponse>> update(@PathVariable Integer id,
-                                                                   @Valid @RequestBody VehicleTypeRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Cập nhật loại xe thành công", vehicleTypeService.update(id, request)));
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Cập nhật loại xe", description = "Chỉnh sửa mã, tên hoặc sức chứa của loại xe")
+    public ResponseEntity<ApiResponse<VehicleTypeResponse>> update(
+            @PathVariable Short id,
+            @Valid @RequestBody VehicleTypeRequest request) {
+        VehicleTypeResponse response = vehicleTypeService.update(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật loại xe thành công", response));
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Xóa loại xe")
-    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Integer id) {
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Short id) {
         vehicleTypeService.delete(id);
         return ResponseEntity.ok(ApiResponse.success("Đã xóa loại xe thành công"));
     }

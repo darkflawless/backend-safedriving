@@ -8,5 +8,6 @@ import java.util.List;
 
 @Repository
 public interface IncidentRepository extends JpaRepository<Incident, String> {
+
     List<Incident> findByTripId(String tripId);
 }

@@ -11,6 +11,8 @@ import java.util.Base64;
 
 /**
  * Chạy một background thread để mở cổng socket UDP, bóc tách packet và đẩy sang WebSocket.
+ *
+ * @author phanthuy0811
  */
 public class UdpCameraReceiver {
 
@@ -35,13 +37,13 @@ public class UdpCameraReceiver {
         try {
             socket = new DatagramSocket(port);
             running = true;
-            log.info("[UDP] Camera receiver đang lắng nghe trên cổng {}", port);
+            log.info("📹 [UDP Camera] Receiver đang lắng nghe trên cổng UDP {}", port);
 
             listenerThread = new Thread(this::listenLoop, "udp-camera-listener");
             listenerThread.setDaemon(true);
             listenerThread.start();
         } catch (Exception e) {
-            log.error("[UDP] Không thể mở socket UDP trên cổng {}: {}", port, e.getMessage());
+            log.error("📹 [UDP Camera] Không thể mở socket UDP trên cổng {}: {}", port, e.getMessage());
         }
     }
 
@@ -55,7 +57,7 @@ public class UdpCameraReceiver {
                 processPacket(packet.getData(), packet.getLength());
             } catch (Exception e) {
                 if (running) {
-                    log.error("[UDP] Lỗi nhận packet: {}", e.getMessage());
+                    log.error("📹 [UDP Camera] Lỗi nhận packet: {}", e.getMessage());
                 }
             }
         }
@@ -66,7 +68,7 @@ public class UdpCameraReceiver {
      */
     private void processPacket(byte[] data, int length) {
         if (length < 9) {
-            log.warn("[UDP] Packet quá ngắn ({} bytes), bỏ qua", length);
+            log.warn("📹 [UDP Camera] Packet quá ngắn ({} bytes), bỏ qua", length);
             return;
         }
 
@@ -98,6 +100,6 @@ public class UdpCameraReceiver {
         if (socket != null && !socket.isClosed()) {
             socket.close();
         }
-        log.info("[UDP] Camera receiver đã dừng.");
+        log.info("📹 [UDP Camera] Receiver đã dừng.");
     }
 }

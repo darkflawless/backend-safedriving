@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Đọc cấu hình từ file application.yml và khởi tạo Bean UdpCameraReceiver.
+ *
+ * @author phanthuy0811
  */
 @Configuration
 public class UdpServerConfig {

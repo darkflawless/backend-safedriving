@@ -1,46 +1,51 @@
 package com.safedriving.entity;
 
 import com.safedriving.entity.enums.VehicleStatus;
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
+
 @Entity
 @Table(name = "vehicle")
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-@Data
-public class Vehicle {
+@SuperBuilder
+public class Vehicle extends BaseUuidEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", length = 36, updatable = false, nullable = false)
-    private String id;
-
-    @Column(name = "plate_number", unique = true, nullable = false, length = 20)
+    @NotBlank(message = "Plate number is required")
     private String plateNumber;
 
-    @Column(name = "vin", length = 50)
     private String vin;
 
-    @Column(name = "capacity")
     private Integer capacity;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "vehicle_type_id", nullable = false)
+    @NotNull(message = "Vehicle type is required")
+    @ManyToOne
+    @JoinColumn(name = "vehicle_type_id")
     private VehicleType vehicleType;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 30)
-    @Builder.Default
+    @lombok.Builder.Default
     private VehicleStatus status = VehicleStatus.AVAILABLE;
 
-    @Column(name = "odometer_km")
+    @ManyToOne
+    @JoinColumn(name = "device_id")
+    private Device device;
+
     private Double odometerKm;
 
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
+    @lombok.Builder.Default
     private Boolean isDeleted = false;
 }

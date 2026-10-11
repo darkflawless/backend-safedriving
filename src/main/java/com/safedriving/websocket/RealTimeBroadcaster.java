@@ -4,6 +4,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * Lớp đóng gói payload JSON chuẩn và gọi RealTimeHandler phát tới Web.
+ *
+ * @author phanthuy0811
  */
 @Service
 public class RealTimeBroadcaster {

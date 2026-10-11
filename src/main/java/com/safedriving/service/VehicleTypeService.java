@@ -5,11 +5,20 @@ import com.safedriving.dto.response.VehicleTypeResponse;
 
 import java.util.List;
 
+/**
+ * Service interface quản lý loại phương tiện.
+ *
+ * @author phanthuy0811
+ */
 public interface VehicleTypeService {
 
     List<VehicleTypeResponse> getAll();
-    VehicleTypeResponse getById(Integer id);
+
+    VehicleTypeResponse getById(Short id);
+
     VehicleTypeResponse create(VehicleTypeRequest request);
-    VehicleTypeResponse update(Integer id, VehicleTypeRequest request);
-    void delete(Integer id);
+
+    VehicleTypeResponse update(Short id, VehicleTypeRequest request);
+
+    void delete(Short id);
 }

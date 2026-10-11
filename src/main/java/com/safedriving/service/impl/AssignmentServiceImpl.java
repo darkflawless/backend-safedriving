@@ -2,11 +2,15 @@ package com.safedriving.service.impl;
 
 import com.safedriving.dto.request.AssignmentRequest;
 import com.safedriving.dto.response.AssignmentResponse;
+import com.safedriving.entity.Account;
 import com.safedriving.entity.Assignment;
+import com.safedriving.entity.Driver;
 import com.safedriving.entity.Trip;
 import com.safedriving.entity.enums.TripStatus;
 import com.safedriving.exception.ResourceNotFoundException;
+import com.safedriving.repository.AccountRepository;
 import com.safedriving.repository.AssignmentRepository;
+import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.TripRepository;
 import com.safedriving.service.AssignmentService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +27,8 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final TripRepository tripRepository;
+    private final DriverRepository driverRepository;
+    private final AccountRepository accountRepository;
 
     @Override
     public List<AssignmentResponse> getAll() {
@@ -51,10 +57,16 @@ public class AssignmentServiceImpl implements AssignmentService {
         Trip trip = tripRepository.findByIdAndIsDeletedFalse(request.getTripId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi ID: " + request.getTripId()));
 
+        Driver driver = driverRepository.findById(request.getDriverId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế ID: " + request.getDriverId()));
+
+        Account account = accountRepository.findById(request.getAccountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + request.getAccountId()));
+
         Assignment assignment = Assignment.builder()
                 .trip(trip)
-                .driverId(request.getDriverId())
-                .accountId(request.getAccountId())
+                .driver(driver)
+                .account(account)
                 .assignmentAt(LocalDateTime.now())
                 .isDeleted(false)
                 .build();
@@ -75,9 +87,15 @@ public class AssignmentServiceImpl implements AssignmentService {
         Trip trip = tripRepository.findByIdAndIsDeletedFalse(request.getTripId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi ID: " + request.getTripId()));
 
+        Driver driver = driverRepository.findById(request.getDriverId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế ID: " + request.getDriverId()));
+
+        Account account = accountRepository.findById(request.getAccountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + request.getAccountId()));
+
         assignment.setTrip(trip);
-        assignment.setDriverId(request.getDriverId());
-        assignment.setAccountId(request.getAccountId());
+        assignment.setDriver(driver);
+        assignment.setAccount(account);
 
         return mapToResponse(assignmentRepository.save(assignment));
     }
@@ -94,9 +112,9 @@ public class AssignmentServiceImpl implements AssignmentService {
     private AssignmentResponse mapToResponse(Assignment entity) {
         return AssignmentResponse.builder()
                 .id(entity.getId())
-                .tripId(entity.getTrip().getId())
-                .driverId(entity.getDriverId())
-                .accountId(entity.getAccountId())
+                .tripId(entity.getTrip() != null ? entity.getTrip().getId() : null)
+                .driverId(entity.getDriver() != null ? entity.getDriver().getId() : null)
+                .accountId(entity.getAccount() != null ? entity.getAccount().getId() : null)
                 .assignmentAt(entity.getAssignmentAt())
                 .build();
     }

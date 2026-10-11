@@ -1,11 +1,15 @@
 package com.safedriving.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Entity;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
@@ -15,29 +19,27 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class Assignment {
+@SuperBuilder
+public class Assignment extends BaseUuidEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", length = 36, updatable = false, nullable = false)
-    private String id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", nullable = false)
-    private Trip trip;
-
-    @Column(name = "driver_id", length = 36, nullable = false)
-    private String driverId;
-
-    @Column(name = "account_id", length = 36, nullable = false)
-    private String accountId; // ID Người tạo phân công
-
-    @Column(name = "assignment_at", nullable = false)
-    @Builder.Default
+    @lombok.Builder.Default
     private LocalDateTime assignmentAt = LocalDateTime.now();
 
-    @Column(name = "is_deleted", nullable = false)
-    @Builder.Default
+    @NotNull(message = "Trip is required")
+    @ManyToOne
+    @JoinColumn(name = "trip_id")
+    private Trip trip;
+
+    @NotNull(message = "Account (assigner) is required")
+    @ManyToOne
+    @JoinColumn(name = "account_id")
+    private Account account;
+
+    @NotNull(message = "Driver is required")
+    @ManyToOne
+    @JoinColumn(name = "driver_id")
+    private Driver driver;
+
+    @lombok.Builder.Default
     private Boolean isDeleted = false;
 }

@@ -12,6 +12,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 /**
  * Xử lý bắt sự kiện mở/đóng kết nối WebSocket và chuyển tiếp lệnh từ Web xuống App
+ *
+ * @author phanthuy0811
  */
 @Component
 public class RealTimeHandler extends TextWebSocketHandler {
@@ -53,35 +55,39 @@ public class RealTimeHandler extends TextWebSocketHandler {
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
-        log.error("[WS] Lỗi transport {}: {}", session.getId(), exception.getMessage());
+        log.error("[WebSocket] Lỗi transport {}: {}", session.getId(), exception.getMessage());
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             JsonNode json = objectMapper.readTree(message.getPayload());
-            String type = json.get("type").asText();
+            String type = json.has("type") ? json.get("type").asText() : "";
 
             switch (type) {
                 case "REQUEST_STREAM": {
                     // Admin bấm "Xem camera" -> gửi lệnh START_STREAM xuống App
-                    long driverId = json.get("driverId").asLong();
-                    forwardToApp(driverId, "{\"type\":\"START_STREAM\"}");
-                    log.info("[WS] Admin yêu cầu stream từ driverId={}", driverId);
+                    if (json.has("driverId")) {
+                        long driverId = json.get("driverId").asLong();
+                        forwardToApp(driverId, "{\"type\":\"START_STREAM\"}");
+                        log.info("🎥 [WebSocket] Admin yêu cầu stream từ driverId={}", driverId);
+                    }
                     break;
                 }
                 case "STOP_STREAM": {
                     // Admin bấm "Dừng xem" -> gửi lệnh STOP_STREAM xuống App
-                    long driverId = json.get("driverId").asLong();
-                    forwardToApp(driverId, "{\"type\":\"STOP_STREAM\"}");
-                    log.info("[WS] Admin dừng stream từ driverId={}", driverId);
+                    if (json.has("driverId")) {
+                        long driverId = json.get("driverId").asLong();
+                        forwardToApp(driverId, "{\"type\":\"STOP_STREAM\"}");
+                        log.info("⏹️ [WebSocket] Admin dừng stream từ driverId={}", driverId);
+                    }
                     break;
                 }
                 default:
-                    log.warn("[WS] Tin nhắn không xác định: {}", type);
+                    log.debug("[WebSocket] Tin nhắn không xác định: {}", type);
             }
         } catch (Exception e) {
-            log.error("[WS] Lỗi xử lý tin nhắn: {}", e.getMessage());
+            log.error("[WebSocket] Lỗi xử lý tin nhắn: {}", e.getMessage());
         }
     }
 
@@ -95,7 +101,7 @@ public class RealTimeHandler extends TextWebSocketHandler {
                     session.sendMessage(new TextMessage(jsonMessage));
                 }
             } catch (Exception e) {
-                log.error("[WS] Lỗi gửi đến web session {}: {}", session.getId(), e.getMessage());
+                log.error("[WebSocket] Lỗi gửi đến web session {}: {}", session.getId(), e.getMessage());
             }
         }
     }
@@ -106,10 +112,10 @@ public class RealTimeHandler extends TextWebSocketHandler {
             try {
                 appSession.sendMessage(new TextMessage(command));
             } catch (Exception e) {
-                log.error("[WS] Lỗi gửi lệnh đến App driverId={}: {}", driverId, e.getMessage());
+                log.error("[WebSocket] Lỗi gửi lệnh đến App driverId={}: {}", driverId, e.getMessage());
             }
         } else {
-            log.warn("[WS] Không tìm thấy session cho App driverId={}", driverId);
+            log.warn("[WebSocket] Không tìm thấy session cho App driverId={}", driverId);
         }
     }
 

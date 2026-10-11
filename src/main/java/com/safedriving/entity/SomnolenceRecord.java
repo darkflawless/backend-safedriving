@@ -1,11 +1,13 @@
 package com.safedriving.entity;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,22 +29,13 @@ public class SomnolenceRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "driver_id", length = 36, nullable = false)
-    private String driverId;
+    @NotNull(message = "Driver is required")
+    @ManyToOne
+    @JoinColumn(name = "driver_id")
+    private Driver driver;
 
-    @Column(name = "vehicle_id", length = 36)
-    private String vehicleId;
-
-    @Column(name = "record_time", nullable = false)
     @Builder.Default
     private LocalDateTime recordTime = LocalDateTime.now();
 
-    @Column(name = "drowsiness_level")
-    private Integer drowsinessLevel; // Mức độ ngủ gật (1 - 5)
-
-    @Column(name = "image_url")
-    private String imageUrl; // URL ảnh bằng chứng từ AI Camera
-
-    @Column(name = "notes")
     private String notes;
 }

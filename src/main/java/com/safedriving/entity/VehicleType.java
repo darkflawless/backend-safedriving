@@ -1,29 +1,38 @@
 package com.safedriving.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+/**
+ * Bảng danh mục loại xe - id gán thủ công (seed data).
+ * VD: BUS29, BUS45, SLEEPER...
+ */
 @Entity
 @Table(name = "vehicle_type")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class VehicleType {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Short id;
 
-    @Column(name = "code", unique = true, nullable = false, length = 50)
+    @NotBlank(message = "Code is required")
+    @Column(unique = true)
     private String code;
 
-    @Column(name = "name", nullable = false, length = 100)
+    @NotBlank(message = "Name is required")
     private String name;
 
-    @Column(name = "capacity", nullable = false)
     private Integer capacity;
 }

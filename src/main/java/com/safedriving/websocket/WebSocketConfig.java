@@ -7,6 +7,8 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 
 /**
  * Đăng ký endpoint /ws/realtime để client kết nối.
+ *
+ * @author phanthuy0811
  */
 @Configuration
 @EnableWebSocket
@@ -21,6 +23,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(realTimeHandler, "/ws/realtime")
-                .setAllowedOrigins("*");
+                .setAllowedOriginPatterns("*");
     }
 }

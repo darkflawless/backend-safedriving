@@ -2,8 +2,19 @@ package com.safedriving.entity;
 
 import com.safedriving.entity.enums.IncidentSeverity;
 import com.safedriving.entity.enums.IncidentType;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDateTime;
 
@@ -13,29 +24,25 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class Incident {
+@SuperBuilder
+public class Incident extends BaseUuidEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", length = 36, updatable = false, nullable = false)
-    private String id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", nullable = false)
+    @NotNull(message = "Trip is required")
+    @ManyToOne
+    @JoinColumn(name = "trip_id")
     private Trip trip;
 
-    @Column(name = "time_incident", nullable = false)
+    @NotNull(message = "Time incident is required")
     private LocalDateTime timeIncident;
 
+    @NotNull(message = "Type is required")
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, length = 30)
     private IncidentType type;
 
-    @Column(name = "description", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
+    @NotNull(message = "Severity is required")
     @Enumerated(EnumType.STRING)
-    @Column(name = "severity", nullable = false, length = 30)
     private IncidentSeverity severity;
 }

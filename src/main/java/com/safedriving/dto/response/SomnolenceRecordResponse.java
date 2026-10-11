@@ -10,9 +10,6 @@ import java.time.LocalDateTime;
 public class SomnolenceRecordResponse {
     private Long id;
     private String driverId;
-    private String vehicleId;
     private LocalDateTime recordTime;
-    private Integer drowsinessLevel;
-    private String imageUrl;
     private String notes;
 }

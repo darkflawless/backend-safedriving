@@ -2,8 +2,10 @@ package com.safedriving.service.impl;
 
 import com.safedriving.dto.request.SomnolenceRecordRequest;
 import com.safedriving.dto.response.SomnolenceRecordResponse;
+import com.safedriving.entity.Driver;
 import com.safedriving.entity.SomnolenceRecord;
 import com.safedriving.exception.ResourceNotFoundException;
+import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.SomnolenceRecordRepository;
 import com.safedriving.service.SomnolenceRecordService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 public class SomnolenceRecordServiceImpl implements SomnolenceRecordService {
 
     private final SomnolenceRecordRepository repository;
+    private final DriverRepository driverRepository;
 
     @Override
     public List<SomnolenceRecordResponse> getAll() {
@@ -44,12 +47,12 @@ public class SomnolenceRecordServiceImpl implements SomnolenceRecordService {
     @Override
     @Transactional
     public SomnolenceRecordResponse create(SomnolenceRecordRequest request) {
+        Driver driver = driverRepository.findById(request.getDriverId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế ID: " + request.getDriverId()));
+
         SomnolenceRecord entity = SomnolenceRecord.builder()
-                .driverId(request.getDriverId())
-                .vehicleId(request.getVehicleId())
+                .driver(driver)
                 .recordTime(request.getRecordTime() != null ? request.getRecordTime() : LocalDateTime.now())
-                .drowsinessLevel(request.getDrowsinessLevel())
-                .imageUrl(request.getImageUrl())
                 .notes(request.getNotes())
                 .build();
 
@@ -68,11 +71,8 @@ public class SomnolenceRecordServiceImpl implements SomnolenceRecordService {
     private SomnolenceRecordResponse mapToResponse(SomnolenceRecord record) {
         return SomnolenceRecordResponse.builder()
                 .id(record.getId())
-                .driverId(record.getDriverId())
-                .vehicleId(record.getVehicleId())
+                .driverId(record.getDriver() != null ? record.getDriver().getId() : null)
                 .recordTime(record.getRecordTime())
-                .drowsinessLevel(record.getDrowsinessLevel())
-                .imageUrl(record.getImageUrl())
                 .notes(record.getNotes())
                 .build();
     }
