@@ -90,6 +90,13 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.success("Kết thúc chuyến đi thành công", response));
     }
 
+    @PostMapping("/{id}/auto-dispatch")
+    @Operation(summary = "Tự động nổ đơn phân công", description = "Hệ thống tự động quét tìm xe đang rảnh (AVAILABLE) và tài xế phụ trách để gán vào chuyến đi, đồng thời tự động lưu vết Assignment")
+    public ResponseEntity<ApiResponse<TripResponse>> autoDispatch(@PathVariable String id) {
+        TripResponse response = tripService.autoDispatchTrip(id);
+        return ResponseEntity.ok(ApiResponse.success("Tự động nổ đơn chuyến đi thành công", response));
+    }
+
     @GetMapping("/active/driver/{driverId}")
     @Operation(summary = "Lấy chuyến đi hiện tại của tài xế", description = "Mobile App gọi để tự động mở chuyến đi đang chạy hoặc chuyến sắp tới được phân công")
     public ResponseEntity<ApiResponse<TripResponse>> getActiveTripByDriver(@PathVariable String driverId) {

@@ -24,6 +24,8 @@ public interface TripService {
 
     TripResponse endTrip(String id, Double finalDistanceKm);
 
+    TripResponse autoDispatchTrip(String id);
+
     TripResponse getActiveTripByDriver(String driverId);
 
     TripGpsTrackResponse recordGpsTrack(String tripId, TripGpsTrackRequest request);

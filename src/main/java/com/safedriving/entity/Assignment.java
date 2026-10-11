@@ -30,9 +30,8 @@ public class Assignment extends BaseUuidEntity {
     @JoinColumn(name = "trip_id")
     private Trip trip;
 
-    @NotNull(message = "Account (assigner) is required")
     @ManyToOne
-    @JoinColumn(name = "account_id")
+    @JoinColumn(name = "account_id", nullable = true)
     private Account account;
 
     @NotNull(message = "Driver is required")
