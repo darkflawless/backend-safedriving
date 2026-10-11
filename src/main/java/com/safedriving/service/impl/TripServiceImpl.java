@@ -59,7 +59,11 @@ public class TripServiceImpl implements TripService {
             trips = tripRepository.findAllByIsDeletedFalseOrderByStartTimeDesc();
         }
 
-        return trips.stream().map(this::mapToResponse).collect(Collectors.toList());
+        if (trips == null) {
+            return List.of();
+        }
+
+        return trips.stream().map(this::mapToResponse).toList();
     }
 
     @Override
@@ -331,6 +335,9 @@ public class TripServiceImpl implements TripService {
     @Transactional(readOnly = true)
     public List<TripGpsTrackResponse> getGpsTracks(String tripId) {
         List<TripGpsTrack> tracks = tripGpsTrackRepository.findByTripIdOrderByRecordedAtAsc(tripId);
+        if (tracks == null) {
+            return List.of();
+        }
         return tracks.stream().map(t -> TripGpsTrackResponse.builder()
                 .id(t.getId())
                 .tripId(tripId)
@@ -339,7 +346,7 @@ public class TripServiceImpl implements TripService {
                 .speedKmh(t.getSpeedKmh())
                 .recordedAt(t.getRecordedAt())
                 .build()
-        ).collect(Collectors.toList());
+        ).toList();
     }
 
     private TripResponse mapToResponse(Trip trip) {
