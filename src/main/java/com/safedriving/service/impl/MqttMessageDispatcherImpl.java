@@ -46,19 +46,29 @@ public class MqttMessageDispatcherImpl implements MqttMessageDispatcher {
     private final DeviceHeartbeatRepository deviceHeartbeatRepository;
     private final SseBroadcasterService sseBroadcasterService;
 
+    // Cache thông tin biển số và tên tài xế 30 giây để tránh query liên tục khi GPS gửi 1Hz
+    private final java.util.Map<String, CachedVehicleInfo> vehicleCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record CachedVehicleInfo(String plateNumber, String driverName, long cachedAt) {
+        boolean isValid() {
+            return System.currentTimeMillis() - cachedAt < 30_000L;
+        }
+    }
+
     @Override
     @Transactional
     public void dispatch(String topic, String payload) {
-        log.info("📩 [MQTT Ingest] Topic: {}, Payload: {}", topic, payload);
-
         try {
             JsonNode root = objectMapper.readTree(payload);
 
             if (topic.contains("/alerts/")) {
+                log.info("🚨 [MQTT Ingest Alert] Topic: {}, Payload: {}", topic, payload);
                 handleAlertMessage(root);
             } else if (topic.contains("/telemetry/") || topic.endsWith("/gps")) {
+                log.debug("📡 [MQTT Telemetry] Topic: {}", topic);
                 handleTelemetryMessage(root);
             } else if (topic.contains("/heartbeat/")) {
+                log.debug("💓 [MQTT Heartbeat] Topic: {}", topic);
                 handleHeartbeatMessage(root);
             } else {
                 log.debug("Bỏ qua topic không xác định: {}", topic);
@@ -187,18 +197,28 @@ public class MqttMessageDispatcherImpl implements MqttMessageDispatcher {
             if (root instanceof ObjectNode objectNode) {
                 String vehicleId = root.path("vehicle_id").asText(null);
                 if (vehicleId != null && !vehicleId.isBlank()) {
-                    Optional<Vehicle> vehicleOpt = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId);
-                    if (vehicleOpt.isEmpty()) {
-                        vehicleOpt = vehicleRepository.findByPlateNumberAndIsDeletedFalse(vehicleId);
-                    }
-                    if (vehicleOpt.isPresent()) {
-                        Vehicle v = vehicleOpt.get();
-                        objectNode.put("plate_number", v.getPlateNumber());
+                    CachedVehicleInfo cached = vehicleCache.get(vehicleId);
+                    if (cached != null && cached.isValid()) {
+                        if (cached.plateNumber() != null) objectNode.put("plate_number", cached.plateNumber());
+                        if (cached.driverName() != null) objectNode.put("driver_name", cached.driverName());
+                    } else {
+                        Optional<Vehicle> vehicleOpt = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId);
+                        if (vehicleOpt.isEmpty()) {
+                            vehicleOpt = vehicleRepository.findByPlateNumberAndIsDeletedFalse(vehicleId);
+                        }
+                        if (vehicleOpt.isPresent()) {
+                            Vehicle v = vehicleOpt.get();
+                            String plate = v.getPlateNumber();
+                            objectNode.put("plate_number", plate);
 
-                        Optional<Driver> driverOpt = driverRepository.findByVehicleIdAndIsDeletedFalse(v.getId());
-                        if (driverOpt.isPresent() && driverOpt.get().getStaff() != null) {
-                            Staff s = driverOpt.get().getStaff();
-                            objectNode.put("driver_name", s.getLastName() + " " + s.getFirstName());
+                            String driverName = null;
+                            Optional<Driver> driverOpt = driverRepository.findByVehicleIdAndIsDeletedFalse(v.getId());
+                            if (driverOpt.isPresent() && driverOpt.get().getStaff() != null) {
+                                Staff s = driverOpt.get().getStaff();
+                                driverName = s.getLastName() + " " + s.getFirstName();
+                                objectNode.put("driver_name", driverName);
+                            }
+                            vehicleCache.put(vehicleId, new CachedVehicleInfo(plate, driverName, System.currentTimeMillis()));
                         }
                     }
                 }

@@ -20,10 +20,10 @@ spring:
       # update: tự tạo/cập nhật bảng theo entity khi khởi động (phù hợp môi trường dev local)
       # đổi thành "validate" hoặc "none" khi lên môi trường thật + dùng migration tool (Flyway/Liquibase)
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
 
@@ -35,8 +35,9 @@ logging:
   pattern:
     console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
   level:
-    com.safedriving: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.safedriving: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
 
 # Cấu hình JWT (đổi secret khi deploy thật, không commit secret thật lên git)
 app:
@@ -64,10 +65,15 @@ mqtt:
   default-topic: ${MQTT_DEFAULT_TOPIC:driverguard/#}
   qos: ${MQTT_QOS:1}
 
-# Cấu hình MinIO S3 Storage
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  secret-key: ${MINIO_SECRET_KEY:minioadminpassword}
   bucket-name: ${MINIO_BUCKET_NAME:driverguard-media}
-  expiry-seconds: ${MINIO_EXPIRY_SECONDS:3600}
+  expiry-seconds: ${MINIO_EXPIRY_SECONDS:3600}
+
+# UDP Server nhận stream từ camera thiết bị trên xe
+udp:
+  camera:
+    port: ${UDP_CAMERA_PORT:9090}         # Cổng nhận UDP từ App
+    buffer-size: ${UDP_BUFFER_SIZE:65507} # Kích thước buffer tối đa của UDP packet

@@ -20,5 +20,8 @@ public interface VehicleRepository extends JpaRepository<Vehicle, String> {
     List<Vehicle> findByStatusAndIsDeletedFalse(VehicleStatus status);
 
     Optional<Vehicle> findByPlateNumberAndIsDeletedFalse(String plateNumber);
-}
 
+    boolean existsByPlateNumberAndIsDeletedFalse(String plateNumber);
+
+    boolean existsByPlateNumberAndIdNotAndIsDeletedFalse(String plateNumber, String id);
+}

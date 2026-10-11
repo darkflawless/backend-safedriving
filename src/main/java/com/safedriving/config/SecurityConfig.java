@@ -66,6 +66,8 @@ public class SecurityConfig {
                                 "/api/v1/media/**",
                                 "/realtime/**",
                                 "/api/v1/realtime/**",
+                                "/ws/**",
+                                "/ws/realtime/**",
                                 "/vehicles/**",
                                 "/api/v1/vehicles/**",
                                 "/swagger-ui/**",

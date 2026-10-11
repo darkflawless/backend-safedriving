@@ -24,6 +24,9 @@ public class VehicleResponse {
 
     private Integer capacity;
 
+    @JsonProperty("vehicle_type_id")
+    private Short vehicleTypeId;
+
     @JsonProperty("vehicle_type_name")
     private String vehicleTypeName;
 
@@ -40,4 +43,40 @@ public class VehicleResponse {
 
     @JsonProperty("assigned_driver_name")
     private String assignedDriverName;
+
+    // Dual getters for seamless frontend camelCase access
+    @JsonProperty("plateNumber")
+    public String getPlateNumberCamel() {
+        return plateNumber;
+    }
+
+    @JsonProperty("vehicleTypeId")
+    public Short getVehicleTypeIdCamel() {
+        return vehicleTypeId;
+    }
+
+    @JsonProperty("vehicleTypeName")
+    public String getVehicleTypeNameCamel() {
+        return vehicleTypeName;
+    }
+
+    @JsonProperty("odometerKm")
+    public Double getOdometerKmCamel() {
+        return odometerKm;
+    }
+
+    @JsonProperty("deviceId")
+    public String getDeviceIdCamel() {
+        return deviceId;
+    }
+
+    @JsonProperty("assignedDriverId")
+    public String getAssignedDriverIdCamel() {
+        return assignedDriverId;
+    }
+
+    @JsonProperty("assignedDriverName")
+    public String getAssignedDriverNameCamel() {
+        return assignedDriverName;
+    }
 }
