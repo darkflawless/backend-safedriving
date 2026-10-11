@@ -4,6 +4,7 @@ import com.safedriving.dto.request.TripGpsTrackRequest;
 import com.safedriving.dto.request.TripRequest;
 import com.safedriving.dto.response.TripGpsTrackResponse;
 import com.safedriving.dto.response.TripResponse;
+import com.safedriving.entity.Assignment;
 import com.safedriving.entity.Driver;
 import com.safedriving.entity.Route;
 import com.safedriving.entity.Trip;
@@ -12,6 +13,7 @@ import com.safedriving.entity.Vehicle;
 import com.safedriving.entity.enums.TripStatus;
 import com.safedriving.entity.enums.VehicleStatus;
 import com.safedriving.exception.ResourceNotFoundException;
+import com.safedriving.repository.AssignmentRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.IncidentRepository;
 import com.safedriving.repository.RouteRepository;
@@ -41,6 +43,7 @@ public class TripServiceImpl implements TripService {
     private final RouteRepository routeRepository;
     private final SomnolenceRecordRepository somnolenceRecordRepository;
     private final IncidentRepository incidentRepository;
+    private final AssignmentRepository assignmentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -104,6 +107,17 @@ public class TripServiceImpl implements TripService {
                 .build();
 
         Trip saved = tripRepository.save(trip);
+
+        if (driver != null) {
+            Assignment assignment = Assignment.builder()
+                    .trip(saved)
+                    .driver(driver)
+                    .assignmentAt(LocalDateTime.now())
+                    .isDeleted(false)
+                    .build();
+            assignmentRepository.save(assignment);
+        }
+
         log.info("Đã tạo chuyến đi mới: id={}, start={}, end={}", saved.getId(), saved.getStartLocation(), saved.getEndLocation());
         return mapToResponse(saved);
     }
@@ -127,6 +141,14 @@ public class TripServiceImpl implements TripService {
             Driver driver = driverRepository.findByIdAndIsDeletedFalse(request.getDriverId())
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế với ID: " + request.getDriverId()));
             trip.setDriver(driver);
+
+            Assignment assignment = Assignment.builder()
+                    .trip(trip)
+                    .driver(driver)
+                    .assignmentAt(LocalDateTime.now())
+                    .isDeleted(false)
+                    .build();
+            assignmentRepository.save(assignment);
         }
 
         if (request.getStatus() != null) {
@@ -207,6 +229,46 @@ public class TripServiceImpl implements TripService {
 
         Trip saved = tripRepository.save(trip);
         log.info("Tài xế đã kết thúc chuyến đi: id={}, endTime={}, distanceKm={}", saved.getId(), saved.getEndTime(), saved.getDistanceKm());
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public TripResponse autoDispatchTrip(String id) {
+        Trip trip = tripRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + id));
+
+        // 1. Tìm các phương tiện đang sẵn sàng (AVAILABLE)
+        List<Vehicle> availableVehicles = vehicleRepository.findByStatusAndIsDeletedFalse(VehicleStatus.AVAILABLE);
+        if (availableVehicles.isEmpty()) {
+            throw new RuntimeException("Hiện không có phương tiện nào đang rảnh (AVAILABLE) để nổ đơn tự động!");
+        }
+
+        Vehicle selectedVehicle = availableVehicles.get(0);
+
+        // 2. Tìm tài xế phụ trách phương tiện này (hoặc tài xế đang active bất kỳ)
+        Driver selectedDriver = driverRepository.findByVehicleIdAndIsDeletedFalse(selectedVehicle.getId())
+                .orElseGet(() -> driverRepository.findByIsDeletedFalse().stream().findFirst().orElse(null));
+
+        if (selectedDriver == null) {
+            throw new RuntimeException("Không tìm thấy tài xế sẵn sàng cho xe: " + selectedVehicle.getPlateNumber());
+        }
+
+        trip.setVehicle(selectedVehicle);
+        trip.setDriver(selectedDriver);
+        trip.setStatus(TripStatus.ASSIGNED);
+        Trip saved = tripRepository.save(trip);
+
+        // 3. Tự động ghi nhận lịch sử phân công vào bảng Assignment
+        Assignment assignment = Assignment.builder()
+                .trip(saved)
+                .driver(selectedDriver)
+                .assignmentAt(LocalDateTime.now())
+                .isDeleted(false)
+                .build();
+        assignmentRepository.save(assignment);
+
+        log.info("TỰ ĐỘNG NỔ ĐƠN THÀNH CÔNG: Chuyến {} -> Tài xế {} (Xe {})", saved.getId(), selectedDriver.getId(), selectedVehicle.getPlateNumber());
         return mapToResponse(saved);
     }
 
