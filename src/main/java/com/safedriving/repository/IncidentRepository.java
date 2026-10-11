@@ -10,4 +10,6 @@ import java.util.List;
 public interface IncidentRepository extends JpaRepository<Incident, String> {
 
     List<Incident> findByTripId(String tripId);
+
+    long countByTripId(String tripId);
 }

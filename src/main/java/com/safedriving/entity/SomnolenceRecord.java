@@ -37,5 +37,17 @@ public class SomnolenceRecord {
     @Builder.Default
     private LocalDateTime recordTime = LocalDateTime.now();
 
+    @ManyToOne
+    @JoinColumn(name = "vehicle_id")
+    private Vehicle vehicle;
+
+    @ManyToOne
+    @JoinColumn(name = "trip_id")
+    private Trip trip;
+
+    private Integer drowsinessLevel;
+
+    private String imageUrl;
+
     private String notes;
 }

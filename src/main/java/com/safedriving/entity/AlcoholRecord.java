@@ -41,5 +41,9 @@ public class AlcoholRecord {
     @NotNull(message = "Alcohol level is required")
     private BigDecimal alcoholLevel;
 
+    @ManyToOne
+    @JoinColumn(name = "trip_id")
+    private Trip trip;
+
     private String notes;
 }
