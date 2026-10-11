@@ -44,4 +44,8 @@ public class AuthResponse {
 
     @Schema(description = "Thông tin hồ sơ nhân sự liên kết (nếu có)")
     private StaffResponse staff;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("assigned_vehicle")
+    @Schema(description = "Thông tin xe phân công nếu là tài xế (DRIVER)")
+    private VehicleBasicResponse assignedVehicle;
 }
