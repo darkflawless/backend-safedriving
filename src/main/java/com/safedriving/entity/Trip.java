@@ -1,13 +1,13 @@
 package com.safedriving.entity;
 
 import com.safedriving.entity.enums.TripStatus;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,10 +25,30 @@ import java.time.LocalDateTime;
 @SuperBuilder
 public class Trip extends BaseUuidEntity {
 
-    @NotNull(message = "Route is required")
+    /**
+     * Tuyến đường (tùy chọn / nullable, hệ thống chuyển sang quản lý theo Chặng A -> B thực tế)
+     */
     @ManyToOne
-    @JoinColumn(name = "route_id")
+    @JoinColumn(name = "route_id", nullable = true)
     private Route route;
+
+    @ManyToOne
+    @JoinColumn(name = "vehicle_id")
+    private Vehicle vehicle;
+
+    @ManyToOne
+    @JoinColumn(name = "driver_id")
+    private Driver driver;
+
+    @Column(name = "start_location")
+    private String startLocation;
+
+    @Column(name = "end_location")
+    private String endLocation;
+
+    @lombok.Builder.Default
+    @Column(name = "distance_km")
+    private Double distanceKm = 0.0;
 
     @Enumerated(EnumType.STRING)
     @lombok.Builder.Default
@@ -38,14 +58,14 @@ public class Trip extends BaseUuidEntity {
 
     private LocalDateTime endTime;
 
-    @NotNull(message = "Planned start time is required")
     private LocalDateTime plannedStartTime;
 
-    @NotNull(message = "Planned end time is required")
     private LocalDateTime plannedEndTime;
 
     @lombok.Builder.Default
     private Integer currentOrder = 0;
+
+    private String note;
 
     @lombok.Builder.Default
     private Boolean isDeleted = false;
