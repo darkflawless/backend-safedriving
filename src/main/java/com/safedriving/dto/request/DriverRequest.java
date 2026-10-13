@@ -41,8 +41,6 @@ public class DriverRequest {
     @Schema(description = "ID xe được giao dạng phẳng (tùy chọn)")
     private String vehicleId;
 
-
-
     public String resolveStaffId() {
         if (staff != null && staff.getId() != null && !staff.getId().isBlank()) {
             return staff.getId().trim();
@@ -62,6 +60,5 @@ public class DriverRequest {
         }
         return null;
     }
-
 
 }

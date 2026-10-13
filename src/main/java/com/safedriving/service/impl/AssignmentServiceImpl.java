@@ -78,8 +78,10 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .isDeleted(false)
                 .build();
 
-        // Chuyển trạng thái chuyến đi sang ASSIGNED
+        // Chuyển trạng thái chuyến đi sang ASSIGNED và gán tài xế + phương tiện trực tiếp vào chuyến đi
         trip.setStatus(TripStatus.ASSIGNED);
+        trip.setDriver(driver);
+        trip.setVehicle(driver.getVehicle());
         tripRepository.save(trip);
 
         return mapToResponse(assignmentRepository.save(assignment));
@@ -105,9 +107,22 @@ public class AssignmentServiceImpl implements AssignmentService {
         Account account = accountRepository.findById(request.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + request.getAccountId()));
 
+        Trip oldTrip = assignment.getTrip();
+        if (oldTrip != null && !oldTrip.getId().equals(trip.getId())) {
+            oldTrip.setStatus(TripStatus.PLANNED);
+            oldTrip.setDriver(null);
+            oldTrip.setVehicle(null);
+            tripRepository.save(oldTrip);
+        }
+
         assignment.setTrip(trip);
         assignment.setDriver(driver);
         assignment.setAccount(account);
+
+        trip.setStatus(TripStatus.ASSIGNED);
+        trip.setDriver(driver);
+        trip.setVehicle(driver.getVehicle());
+        tripRepository.save(trip);
 
         return mapToResponse(assignmentRepository.save(assignment));
     }
@@ -119,6 +134,14 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phân công ID: " + id));
         assignment.setIsDeleted(true);
         assignmentRepository.save(assignment);
+
+        Trip trip = assignment.getTrip();
+        if (trip != null) {
+            trip.setStatus(TripStatus.PLANNED);
+            trip.setDriver(null);
+            trip.setVehicle(null);
+            tripRepository.save(trip);
+        }
     }
 
     private AssignmentResponse mapToResponse(Assignment entity) {
