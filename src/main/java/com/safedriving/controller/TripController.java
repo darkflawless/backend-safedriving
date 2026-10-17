@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping({"/trips", "/api/v1/trips"})
+@RequestMapping({ "/trips", "/api/v1/trips" })
 @RequiredArgsConstructor
 @Tag(name = "Trip Management", description = "APIs Quản lý Chuyến đi thực tế, bắt đầu/kết thúc chuyến và lưu trữ vệt tọa độ GPS")
 public class TripController {

@@ -4,15 +4,18 @@ import com.safedriving.dto.request.TripGpsTrackRequest;
 import com.safedriving.dto.request.TripRequest;
 import com.safedriving.dto.response.TripGpsTrackResponse;
 import com.safedriving.dto.response.TripResponse;
+import com.safedriving.entity.Account;
 import com.safedriving.entity.Assignment;
 import com.safedriving.entity.Driver;
 import com.safedriving.entity.Route;
+import com.safedriving.entity.Staff;
 import com.safedriving.entity.Trip;
 import com.safedriving.entity.TripGpsTrack;
 import com.safedriving.entity.Vehicle;
 import com.safedriving.entity.enums.TripStatus;
 import com.safedriving.entity.enums.VehicleStatus;
 import com.safedriving.exception.ResourceNotFoundException;
+import com.safedriving.repository.AccountRepository;
 import com.safedriving.repository.AssignmentRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.IncidentRepository;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -44,6 +48,7 @@ public class TripServiceImpl implements TripService {
     private final SomnolenceRecordRepository somnolenceRecordRepository;
     private final IncidentRepository incidentRepository;
     private final AssignmentRepository assignmentRepository;
+    private final AccountRepository accountRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -80,13 +85,15 @@ public class TripServiceImpl implements TripService {
         Vehicle vehicle = null;
         if (request.getVehicleId() != null && !request.getVehicleId().isBlank()) {
             vehicle = vehicleRepository.findByIdAndIsDeletedFalse(request.getVehicleId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + request.getVehicleId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy phương tiện với ID: " + request.getVehicleId()));
         }
 
         Driver driver = null;
         if (request.getDriverId() != null && !request.getDriverId().isBlank()) {
             driver = driverRepository.findByIdAndIsDeletedFalse(request.getDriverId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế với ID: " + request.getDriverId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy tài xế với ID: " + request.getDriverId()));
         }
 
         Route route = null;
@@ -103,8 +110,11 @@ public class TripServiceImpl implements TripService {
                 .driver(driver)
                 .route(route)
                 .status(status)
-                .distanceKm(request.getDistanceKm() != null ? request.getDistanceKm() : 0.0)
-                .plannedStartTime(request.getPlannedStartTime() != null ? request.getPlannedStartTime() : LocalDateTime.now())
+                .distanceKm(request.getDistanceKm() != null && request.getDistanceKm() > 0
+                        ? request.getDistanceKm()
+                        : (route != null && route.getDistanceKm() != null ? route.getDistanceKm() : 0.0))
+                .plannedStartTime(
+                        request.getPlannedStartTime() != null ? request.getPlannedStartTime() : LocalDateTime.now())
                 .plannedEndTime(request.getPlannedEndTime())
                 .note(request.getNote())
                 .isDeleted(false)
@@ -122,7 +132,8 @@ public class TripServiceImpl implements TripService {
             assignmentRepository.save(assignment);
         }
 
-        log.info("Đã tạo chuyến đi mới: id={}, start={}, end={}", saved.getId(), saved.getStartLocation(), saved.getEndLocation());
+        log.info("Đã tạo chuyến đi mới: id={}, start={}, end={}", saved.getId(), saved.getStartLocation(),
+                saved.getEndLocation());
         return mapToResponse(saved);
     }
 
@@ -135,15 +146,30 @@ public class TripServiceImpl implements TripService {
         trip.setStartLocation(request.getStartLocation());
         trip.setEndLocation(request.getEndLocation());
 
-        if (request.getVehicleId() != null && !request.getVehicleId().isBlank()) {
-            Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(request.getVehicleId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + request.getVehicleId()));
-            trip.setVehicle(vehicle);
+        if (request.getVehicleId() != null) {
+            if (request.getVehicleId().isBlank()) {
+                trip.setVehicle(null);
+            } else {
+                Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(request.getVehicleId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Không tìm thấy phương tiện với ID: " + request.getVehicleId()));
+                trip.setVehicle(vehicle);
+            }
+        }
+
+        if (request.getRouteId() != null) {
+            if (request.getRouteId().isBlank()) {
+                trip.setRoute(null);
+            } else {
+                Route route = routeRepository.findById(request.getRouteId()).orElse(null);
+                trip.setRoute(route);
+            }
         }
 
         if (request.getDriverId() != null && !request.getDriverId().isBlank()) {
             Driver driver = driverRepository.findByIdAndIsDeletedFalse(request.getDriverId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế với ID: " + request.getDriverId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Không tìm thấy tài xế với ID: " + request.getDriverId()));
             trip.setDriver(driver);
 
             Assignment assignment = Assignment.builder()
@@ -165,8 +191,10 @@ public class TripServiceImpl implements TripService {
         if (request.getPlannedEndTime() != null) {
             trip.setPlannedEndTime(request.getPlannedEndTime());
         }
-        if (request.getDistanceKm() != null) {
+        if (request.getDistanceKm() != null && request.getDistanceKm() > 0) {
             trip.setDistanceKm(request.getDistanceKm());
+        } else if (trip.getRoute() != null && trip.getRoute().getDistanceKm() != null) {
+            trip.setDistanceKm(trip.getRoute().getDistanceKm());
         }
         if (request.getNote() != null) {
             trip.setNote(request.getNote());
@@ -232,7 +260,8 @@ public class TripServiceImpl implements TripService {
         }
 
         Trip saved = tripRepository.save(trip);
-        log.info("Tài xế đã kết thúc chuyến đi: id={}, endTime={}, distanceKm={}", saved.getId(), saved.getEndTime(), saved.getDistanceKm());
+        log.info("Tài xế đã kết thúc chuyến đi: id={}, endTime={}, distanceKm={}", saved.getId(), saved.getEndTime(),
+                saved.getDistanceKm());
         return mapToResponse(saved);
     }
 
@@ -248,14 +277,65 @@ public class TripServiceImpl implements TripService {
             throw new RuntimeException("Hiện không có phương tiện nào đang rảnh (AVAILABLE) để nổ đơn tự động!");
         }
 
-        Vehicle selectedVehicle = availableVehicles.get(0);
+        Vehicle selectedVehicle = null;
+        Driver selectedDriver = null;
 
-        // 2. Tìm tài xế phụ trách phương tiện này (hoặc tài xế đang active bất kỳ)
-        Driver selectedDriver = driverRepository.findByVehicleIdAndIsDeletedFalse(selectedVehicle.getId())
-                .orElseGet(() -> driverRepository.findByIsDeletedFalse().stream().findFirst().orElse(null));
+        // Ưu tiên 1: Tìm xe rảnh ĐÃ CÓ tài xế phụ trách (và tài xế đó đang hoạt động,
+        // không bận chuyến)
+        for (Vehicle v : availableVehicles) {
+            Optional<Driver> driverOpt = driverRepository.findByVehicleIdAndIsDeletedFalse(v.getId());
+            if (driverOpt.isPresent()) {
+                Driver d = driverOpt.get();
+                boolean isActive = Boolean.TRUE.equals(d.getIsActive());
+                boolean hasTripInProgress = tripRepository
+                        .findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(d.getId(),
+                                TripStatus.IN_PROGRESS)
+                        .isPresent();
+                if (isActive && !hasTripInProgress) {
+                    selectedVehicle = v;
+                    selectedDriver = d;
+                    break;
+                }
+            }
+        }
 
-        if (selectedDriver == null) {
-            throw new RuntimeException("Không tìm thấy tài xế sẵn sàng cho xe: " + selectedVehicle.getPlateNumber());
+        // Ưu tiên 2: Nếu không có cặp xe + tài xế cố định rảnh,
+        // tìm xe rảnh CHƯA ĐƯỢC GÁN cố định cho ai VÀ tài xế đang hoạt động CHƯA CÓ XE
+        // gán cố định
+        if (selectedVehicle == null || selectedDriver == null) {
+            // Lọc tài xế tự do: isActive = true, vehicle == null, không bận chuyến
+            // IN_PROGRESS
+            List<Driver> unassignedDrivers = driverRepository.findByIsDeletedFalse().stream()
+                    .filter(d -> Boolean.TRUE.equals(d.getIsActive()))
+                    .filter(d -> d.getVehicle() == null)
+                    .filter(d -> tripRepository
+                            .findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(d.getId(),
+                                    TripStatus.IN_PROGRESS)
+                            .isEmpty())
+                    .toList();
+
+            if (!unassignedDrivers.isEmpty()) {
+                // Ưu tiên chọn xe rảnh chưa gán tài xế cố định nào
+                for (Vehicle v : availableVehicles) {
+                    boolean hasAssignedDriver = driverRepository.findByVehicleIdAndIsDeletedFalse(v.getId())
+                            .isPresent();
+                    if (!hasAssignedDriver) {
+                        selectedVehicle = v;
+                        break;
+                    }
+                }
+                // Nếu tất cả xe rảnh đều đã được gán tài xế (nhưng tài xế cố định đang bận),
+                // dùng tạm xe rảnh đầu tiên
+                if (selectedVehicle == null) {
+                    selectedVehicle = availableVehicles.get(0);
+                }
+                selectedDriver = unassignedDrivers.get(0);
+            }
+        }
+
+        if (selectedVehicle == null || selectedDriver == null) {
+            throw new RuntimeException(
+                    "Không tìm thấy tài xế phù hợp đang rảnh để nổ đơn tự động! (Yêu cầu tài xế phụ trách xe rảnh hoặc tài xế tự do chưa gán xe)");
         }
 
         trip.setVehicle(selectedVehicle);
@@ -264,23 +344,43 @@ public class TripServiceImpl implements TripService {
         Trip saved = tripRepository.save(trip);
 
         // 3. Tự động ghi nhận lịch sử phân công vào bảng Assignment
+        Account operatorAccount = null;
+        try {
+            org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
+                    .getContext().getAuthentication();
+            if (auth != null && auth.getName() != null && !auth.getName().equals("anonymousUser")) {
+                operatorAccount = accountRepository.findByUsernameAndIsDeletedFalse(auth.getName()).orElse(null);
+            }
+        } catch (Exception ignored) {
+        }
+        if (operatorAccount == null) {
+            operatorAccount = accountRepository.findAll().stream()
+                    .filter(a -> !Boolean.TRUE.equals(a.getIsDeleted()))
+                    .findFirst()
+                    .orElse(null);
+        }
+
         Assignment assignment = Assignment.builder()
                 .trip(saved)
                 .driver(selectedDriver)
+                .account(operatorAccount)
                 .assignmentAt(LocalDateTime.now())
                 .isDeleted(false)
                 .build();
         assignmentRepository.save(assignment);
 
-        log.info("TỰ ĐỘNG NỔ ĐƠN THÀNH CÔNG: Chuyến {} -> Tài xế {} (Xe {})", saved.getId(), selectedDriver.getId(), selectedVehicle.getPlateNumber());
+        log.info("TỰ ĐỘNG NỔ ĐƠN THÀNH CÔNG: Chuyến {} -> Tài xế {} (Xe {})", saved.getId(), selectedDriver.getId(),
+                selectedVehicle.getPlateNumber());
         return mapToResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public TripResponse getActiveTripByDriver(String driverId) {
-        Trip trip = tripRepository.findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(driverId, TripStatus.IN_PROGRESS)
-                .orElseGet(() -> tripRepository.findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(driverId, TripStatus.PLANNED)
+        Trip trip = tripRepository
+                .findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(driverId, TripStatus.IN_PROGRESS)
+                .orElseGet(() -> tripRepository
+                        .findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(driverId, TripStatus.PLANNED)
                         .orElse(null));
 
         if (trip == null) {
@@ -312,7 +412,8 @@ public class TripServiceImpl implements TripService {
         List<TripGpsTrack> existingTracks = tripGpsTrackRepository.findByTripIdOrderByRecordedAtAsc(tripId);
         if (existingTracks.size() >= 2) {
             TripGpsTrack prev = existingTracks.get(existingTracks.size() - 2);
-            double distDelta = calculateDistanceKm(prev.getLatitude(), prev.getLongitude(), request.getLatitude(), request.getLongitude());
+            double distDelta = calculateDistanceKm(prev.getLatitude(), prev.getLongitude(), request.getLatitude(),
+                    request.getLongitude());
             // Lọc nhiễu GPS: khoảng cách giữa 2 điểm phải lớn hơn 10m và nhỏ hơn 50km
             if (distDelta > 0.01 && distDelta < 50.0) {
                 double currentDistance = trip.getDistanceKm() != null ? trip.getDistanceKm() : 0.0;
@@ -345,38 +446,75 @@ public class TripServiceImpl implements TripService {
                 .longitude(t.getLongitude())
                 .speedKmh(t.getSpeedKmh())
                 .recordedAt(t.getRecordedAt())
-                .build()
-        ).toList();
+                .build()).toList();
     }
 
     private TripResponse mapToResponse(Trip trip) {
-        String vehiclePlate = trip.getVehicle() != null ? trip.getVehicle().getPlateNumber() : null;
-        String vehicleTypeName = (trip.getVehicle() != null && trip.getVehicle().getVehicleType() != null)
-                ? trip.getVehicle().getVehicleType().getName() : null;
+        Driver driver = trip.getDriver();
+        Vehicle vehicle = trip.getVehicle();
+
+        // Nếu chuyến đi chưa liên kết trực tiếp driver / vehicle nhưng đã có phân công
+        // hợp lệ trong hệ thống
+        if (driver == null || vehicle == null) {
+            List<Assignment> assignments = assignmentRepository.findByTripIdAndIsDeletedFalse(trip.getId());
+            if (assignments != null && !assignments.isEmpty()) {
+                Assignment latest = assignments.get(assignments.size() - 1);
+                if (driver == null && latest.getDriver() != null) {
+                    driver = latest.getDriver();
+                }
+                if (vehicle == null && driver != null && driver.getVehicle() != null) {
+                    vehicle = driver.getVehicle();
+                }
+            }
+        }
+
+        String vehiclePlate = vehicle != null ? vehicle.getPlateNumber() : null;
+        String vehicleTypeName = (vehicle != null && vehicle.getVehicleType() != null)
+                ? vehicle.getVehicleType().getName()
+                : null;
 
         String driverName = null;
         String driverPhone = null;
-        if (trip.getDriver() != null && trip.getDriver().getStaff() != null) {
-            driverName = trip.getDriver().getStaff().getFirstName() + " " + trip.getDriver().getStaff().getLastName();
-            driverPhone = trip.getDriver().getStaff().getPhone();
+        if (driver != null && driver.getStaff() != null) {
+            Staff staff = driver.getStaff();
+            String lastName = staff.getLastName() != null ? staff.getLastName() : "";
+            String firstName = staff.getFirstName() != null ? staff.getFirstName() : "";
+            driverName = (lastName + " " + firstName).trim();
+            driverPhone = staff.getPhone();
         }
 
         long somnolenceCount = somnolenceRecordRepository.countByTripId(trip.getId());
         long incidentCount = incidentRepository.countByTripId(trip.getId());
         long gpsTrackCount = tripGpsTrackRepository.countByTripId(trip.getId());
 
+        TripStatus status = trip.getStatus();
+        List<Assignment> activeAssignments = assignmentRepository.findByTripIdAndIsDeletedFalse(trip.getId());
+        boolean hasActiveAssignment = (activeAssignments != null && !activeAssignments.isEmpty());
+
+        // Nếu chuyến đi đang ghi là ASSIGNED nhưng không còn phân công nào còn hiệu lực (do đã bị xoá),
+        // tự động giải phóng tài xế, xe và chuyển trạng thái về PLANNED
+        if (status == TripStatus.ASSIGNED && !hasActiveAssignment) {
+            driver = null;
+            vehicle = null;
+            vehiclePlate = null;
+            vehicleTypeName = null;
+            driverName = null;
+            driverPhone = null;
+            status = TripStatus.PLANNED;
+        }
+
         return TripResponse.builder()
                 .id(trip.getId())
                 .startLocation(trip.getStartLocation())
                 .endLocation(trip.getEndLocation())
-                .vehicleId(trip.getVehicle() != null ? trip.getVehicle().getId() : null)
+                .vehicleId(vehicle != null ? vehicle.getId() : null)
                 .vehiclePlateNumber(vehiclePlate)
                 .vehicleTypeName(vehicleTypeName)
-                .driverId(trip.getDriver() != null ? trip.getDriver().getId() : null)
+                .driverId(driver != null ? driver.getId() : null)
                 .driverName(driverName)
                 .driverPhone(driverPhone)
                 .distanceKm(trip.getDistanceKm() != null ? trip.getDistanceKm() : 0.0)
-                .status(trip.getStatus())
+                .status(status)
                 .plannedStartTime(trip.getPlannedStartTime())
                 .plannedEndTime(trip.getPlannedEndTime())
                 .startTime(trip.getStartTime())
@@ -399,7 +537,7 @@ public class TripServiceImpl implements TripService {
         double lonDistance = Math.toRadians(lon2 - lon1);
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+                        * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     }

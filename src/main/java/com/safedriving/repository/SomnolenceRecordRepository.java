@@ -9,6 +9,8 @@ import java.util.List;
 @Repository
 public interface SomnolenceRecordRepository extends JpaRepository<SomnolenceRecord, Long> {
 
+    List<SomnolenceRecord> findByDriverId(String driverId);
+
     List<SomnolenceRecord> findByDriverIdOrderByRecordTimeDesc(String driverId);
 
     List<SomnolenceRecord> findAllByOrderByRecordTimeDesc();
@@ -17,3 +19,4 @@ public interface SomnolenceRecordRepository extends JpaRepository<SomnolenceReco
 
     List<SomnolenceRecord> findByTripIdOrderByRecordTimeDesc(String tripId);
 }
+

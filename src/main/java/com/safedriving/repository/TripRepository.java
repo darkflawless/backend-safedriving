@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface TripRepository extends JpaRepository<Trip, String> {
-
+    List<Trip> findAllByIsDeletedFalse();
     Optional<Trip> findByIdAndIsDeletedFalse(String id);
 
     List<Trip> findAllByIsDeletedFalseOrderByStartTimeDesc();
