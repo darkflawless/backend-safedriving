@@ -111,13 +111,18 @@ class DriverControllerTest {
     }
 
     @Test
-    @DisplayName("POST /drivers - Tạo hồ sơ tài xế mới thành công")
+    @DisplayName("POST /drivers (JSON) - Tạo hồ sơ tài xế mới thành công")
     void createDriver_Success() throws Exception {
-        DriverRequest request = DriverRequest.builder()
+        com.safedriving.dto.request.DriverCreateRequest request = com.safedriving.dto.request.DriverCreateRequest.builder()
+                .username("driver_vana")
+                .password("Password123@")
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .phone("0901234567")
+                .email("vana@example.com")
                 .hireDate(LocalDate.of(2023, 1, 15))
                 .urlImage("https://example.com/avatar.jpg")
                 .isActive(true)
-                .staff(IdReference.builder().id("staff-1").build())
                 .build();
 
         DriverResponse response = DriverResponse.builder()
@@ -126,7 +131,7 @@ class DriverControllerTest {
                 .isActive(true)
                 .build();
 
-        when(driverService.createDriver(any(DriverRequest.class))).thenReturn(response);
+        when(driverService.createDriver(any(com.safedriving.dto.request.DriverCreateRequest.class), org.mockito.ArgumentMatchers.isNull())).thenReturn(response);
 
         mockMvc.perform(post("/drivers")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -137,10 +142,45 @@ class DriverControllerTest {
     }
 
     @Test
-    @DisplayName("POST /drivers - Thất bại khi thiếu hireDate")
-    void createDriver_MissingHireDate_ValidationError() throws Exception {
-        DriverRequest request = DriverRequest.builder()
-                .staff(IdReference.builder().id("staff-1").build())
+    @DisplayName("POST /drivers (Multipart) - Tạo hồ sơ tài xế kèm avatar thành công")
+    void createDriverWithAvatar_Success() throws Exception {
+        com.safedriving.dto.request.DriverCreateRequest request = com.safedriving.dto.request.DriverCreateRequest.builder()
+                .username("driver_vana")
+                .password("Password123@")
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .phone("0901234567")
+                .build();
+
+        org.springframework.mock.web.MockMultipartFile dataPart = new org.springframework.mock.web.MockMultipartFile(
+                "data", "", MediaType.APPLICATION_JSON_VALUE, objectMapper.writeValueAsBytes(request));
+
+        org.springframework.mock.web.MockMultipartFile avatarPart = new org.springframework.mock.web.MockMultipartFile(
+                "avatar", "avatar.jpg", MediaType.IMAGE_JPEG_VALUE, "dummy-image-bytes".getBytes());
+
+        DriverResponse response = DriverResponse.builder()
+                .id("driver-3")
+                .hireDate(LocalDate.now())
+                .urlImage("https://minio.example.com/avatars/avatar.jpg")
+                .isActive(true)
+                .build();
+
+        when(driverService.createDriver(any(com.safedriving.dto.request.DriverCreateRequest.class), any(org.springframework.web.multipart.MultipartFile.class))).thenReturn(response);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/drivers")
+                        .file(dataPart)
+                        .file(avatarPart))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.id").value("driver-3"));
+    }
+
+    @Test
+    @DisplayName("POST /drivers - Thất bại khi thiếu username hoặc phone")
+    void createDriver_MissingRequiredFields_ValidationError() throws Exception {
+        com.safedriving.dto.request.DriverCreateRequest request = com.safedriving.dto.request.DriverCreateRequest.builder()
+                .firstName("Van A")
+                .lastName("Nguyen")
                 .build();
 
         mockMvc.perform(post("/drivers")

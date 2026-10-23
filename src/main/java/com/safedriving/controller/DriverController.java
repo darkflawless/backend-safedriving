@@ -45,10 +45,41 @@ public class DriverController {
         return ResponseEntity.ok(ApiResponse.success("Lấy thông tin tài xế thành công", response));
     }
 
-    @PostMapping
-    @Operation(summary = "Tạo hồ sơ tài xế mới", description = "Tạo hồ sơ tài xế mới (ngày tuyển dụng hireDate, URL ảnh, cờ isActive, liên kết staff, vehicle, licenseClass).")
-    public ResponseEntity<ApiResponse<DriverResponse>> createDriver(@Valid @RequestBody DriverRequest request) {
-        DriverResponse response = driverService.createDriver(request);
+    @PostMapping(consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Tạo hồ sơ tài xế trọn gói (JSON)", description = "Tạo tài khoản Account (role DRIVER), hồ sơ nhân sự Staff và Driver trong một transaction duy nhất.")
+    public ResponseEntity<ApiResponse<DriverResponse>> createDriver(@Valid @RequestBody com.safedriving.dto.request.DriverCreateRequest request) {
+        DriverResponse response = driverService.createDriver(request, null);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Tạo hồ sơ tài xế thành công", response));
+    }
+
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final jakarta.validation.Validator validator;
+
+    @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tạo hồ sơ tài xế trọn gói kèm ảnh đại diện (Multipart)", description = "Tạo trọn gói Account, Staff, Driver và tự động upload ảnh lên S3/MinIO, đồng bộ khuôn mặt sang FastAPI (InsightFace).")
+    public ResponseEntity<ApiResponse<DriverResponse>> createDriverWithAvatar(
+            @io.swagger.v3.oas.annotations.Parameter(
+                    description = "Thông tin tài xế dạng JSON",
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = com.safedriving.dto.request.DriverCreateRequest.class)
+            )
+            @org.springframework.web.bind.annotation.RequestPart("data") String dataJson,
+            @org.springframework.web.bind.annotation.RequestPart(value = "avatar", required = false) org.springframework.web.multipart.MultipartFile avatar) {
+        
+        com.safedriving.dto.request.DriverCreateRequest request;
+        try {
+            request = objectMapper.readValue(dataJson, com.safedriving.dto.request.DriverCreateRequest.class);
+        } catch (Exception e) {
+            throw new com.safedriving.exception.BadRequestException("Dữ liệu 'data' không đúng định dạng JSON: " + e.getMessage());
+        }
+
+        var violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            String firstError = violations.iterator().next().getMessage();
+            throw new com.safedriving.exception.BadRequestException("Lỗi xác thực dữ liệu: " + firstError);
+        }
+
+        DriverResponse response = driverService.createDriver(request, avatar);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo hồ sơ tài xế thành công", response));
     }

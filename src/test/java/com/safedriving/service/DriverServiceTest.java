@@ -10,6 +10,7 @@ import com.safedriving.entity.enums.Gender;
 import com.safedriving.entity.enums.VehicleStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
+import com.safedriving.repository.AccountRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.StaffRepository;
 import com.safedriving.repository.VehicleRepository;
@@ -47,7 +48,17 @@ class DriverServiceTest {
     @Mock
     private VehicleRepository vehicleRepository;
 
+    @Mock
+    private AccountRepository accountRepository;
 
+    @Mock
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
+    @Mock
+    private MinioService minioService;
+
+    @Mock
+    private FaceRecognitionService faceRecognitionService;
 
     @InjectMocks
     private DriverServiceImpl driverService;
@@ -174,6 +185,99 @@ class DriverServiceTest {
         when(driverRepository.existsByStaffId("staff-1")).thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> driverService.createDriver(request));
+    }
+
+    @Test
+    @DisplayName("createDriver (trọn gói) - Thành công với đầy đủ avatar và gán xe")
+    void createDriver_Comprehensive_Success_WithAvatar() {
+        com.safedriving.dto.request.DriverCreateRequest request = com.safedriving.dto.request.DriverCreateRequest.builder()
+                .username("driver_vana")
+                .password("Password123@")
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .phone("0901234567")
+                .email("vana@example.com")
+                .dateOfBirth(LocalDate.of(1990, 1, 15))
+                .gender(Gender.MALE)
+                .exactAddress("123 Pho Hue")
+                .commune("Hang Bai")
+                .province("Ha Noi")
+                .vehicleId("veh-1")
+                .hireDate(LocalDate.of(2024, 5, 1))
+                .isActive(true)
+                .build();
+
+        org.springframework.mock.web.MockMultipartFile avatar = new org.springframework.mock.web.MockMultipartFile(
+                "avatar", "avatar.jpg", "image/jpeg", "fake-image-bytes".getBytes());
+
+        when(accountRepository.existsByUsername("driver_vana")).thenReturn(false);
+        when(staffRepository.existsByPhone("0901234567")).thenReturn(false);
+        when(staffRepository.existsByEmail("vana@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123@")).thenReturn("hashed-pass");
+
+        when(accountRepository.save(any(com.safedriving.entity.Account.class))).thenAnswer(inv -> {
+            com.safedriving.entity.Account acc = inv.getArgument(0);
+            acc.setId("acc-driver-1");
+            return acc;
+        });
+
+        when(staffRepository.save(any(Staff.class))).thenAnswer(inv -> {
+            Staff s = inv.getArgument(0);
+            s.setId("staff-driver-1");
+            return s;
+        });
+
+        when(vehicleRepository.findByIdAndIsDeletedFalse("veh-1")).thenReturn(Optional.of(testVehicle));
+        when(minioService.uploadFile(avatar, "avatars")).thenReturn("https://minio.example.com/avatars/avatar.jpg");
+
+        when(driverRepository.save(any(Driver.class))).thenAnswer(inv -> {
+            Driver d = inv.getArgument(0);
+            d.setId("driver-new-1");
+            return d;
+        });
+
+        DriverResponse response = driverService.createDriver(request, avatar);
+
+        assertNotNull(response);
+        assertEquals("driver-new-1", response.getId());
+        assertEquals("https://minio.example.com/avatars/avatar.jpg", response.getUrlImage());
+        assertEquals("Van A", response.getStaff().getFirstName());
+        assertEquals("29B-12345", response.getVehicle().getPlateNumber());
+
+        verify(faceRecognitionService).enrollDriver("driver-new-1", avatar, true);
+    }
+
+    @Test
+    @DisplayName("createDriver (trọn gói) - Thất bại khi username đã tồn tại")
+    void createDriver_Comprehensive_DuplicateUsername_ThrowsBadRequest() {
+        com.safedriving.dto.request.DriverCreateRequest request = com.safedriving.dto.request.DriverCreateRequest.builder()
+                .username("driver_vana")
+                .password("Password123@")
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .phone("0901234567")
+                .build();
+
+        when(accountRepository.existsByUsername("driver_vana")).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> driverService.createDriver(request, null));
+    }
+
+    @Test
+    @DisplayName("createDriver (trọn gói) - Thất bại khi số điện thoại đã tồn tại")
+    void createDriver_Comprehensive_DuplicatePhone_ThrowsBadRequest() {
+        com.safedriving.dto.request.DriverCreateRequest request = com.safedriving.dto.request.DriverCreateRequest.builder()
+                .username("driver_vana")
+                .password("Password123@")
+                .firstName("Van A")
+                .lastName("Nguyen")
+                .phone("0901234567")
+                .build();
+
+        when(accountRepository.existsByUsername("driver_vana")).thenReturn(false);
+        when(staffRepository.existsByPhone("0901234567")).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> driverService.createDriver(request, null));
     }
 
     @Test
