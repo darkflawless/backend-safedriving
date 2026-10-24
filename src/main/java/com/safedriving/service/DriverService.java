@@ -12,6 +12,8 @@ public interface DriverService {
 
     DriverResponse getDriverById(String id);
 
+    DriverResponse getMyDriverProfile(String accountId);
+
     DriverResponse createDriver(DriverRequest request);
 
     DriverResponse createDriver(DriverCreateRequest request, org.springframework.web.multipart.MultipartFile avatar);

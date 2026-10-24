@@ -99,7 +99,8 @@ public class DriverServiceImpl implements DriverService {
         if (request.getVehicleId() != null && !request.getVehicleId().isBlank()) {
             String vehicleId = request.getVehicleId().trim();
             vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
         }
 
         // 5. Xác định URL ảnh
@@ -152,6 +153,15 @@ public class DriverServiceImpl implements DriverService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public DriverResponse getMyDriverProfile(String accountId) {
+        log.info("Tra cứu hồ sơ tài xế hiện tại theo Account ID: {}", accountId);
+        Driver driver = driverRepository.findByStaffAccountIdAndIsDeletedFalse(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế liên kết với tài khoản này"));
+        return toResponse(driver);
+    }
+
+    @Override
     @Transactional
     public DriverResponse createDriver(DriverRequest request) {
         String staffId = request.resolveStaffId();
@@ -172,10 +182,9 @@ public class DriverServiceImpl implements DriverService {
         String vehicleId = request.resolveVehicleId();
         if (vehicleId != null) {
             vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
         }
-
-
 
         Driver driver = Driver.builder()
                 .hireDate(request.getHireDate())
@@ -201,7 +210,8 @@ public class DriverServiceImpl implements DriverService {
         if (staffId != null && !staffId.isBlank()) {
             if (!driver.getStaff().getId().equals(staffId)) {
                 Staff staff = staffRepository.findById(staffId)
-                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ nhân sự với ID: " + staffId));
+                        .orElseThrow(
+                                () -> new ResourceNotFoundException("Không tìm thấy hồ sơ nhân sự với ID: " + staffId));
 
                 if (driverRepository.existsByStaffIdAndIdNot(staffId, id)) {
                     throw new BadRequestException("Nhân viên này đã được tạo hồ sơ tài xế khác");
@@ -213,13 +223,12 @@ public class DriverServiceImpl implements DriverService {
         String vehicleId = request.resolveVehicleId();
         if (vehicleId != null && !vehicleId.isBlank()) {
             Vehicle vehicle = vehicleRepository.findByIdAndIsDeletedFalse(vehicleId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Không tìm thấy phương tiện với ID: " + vehicleId));
             driver.setVehicle(vehicle);
         } else if (request.getVehicle() != null || request.getVehicleId() != null) {
             driver.setVehicle(null);
         }
-
-
 
         if (request.getHireDate() != null) {
             driver.setHireDate(request.getHireDate());
@@ -241,9 +250,26 @@ public class DriverServiceImpl implements DriverService {
     public void deleteDriver(String id) {
         log.info("Xóa hồ sơ tài xế với ID: {}", id);
         Driver driver = findDriverOrThrow(id);
+
+        // 1. Xóa mềm Driver và gỡ phương tiện
         driver.setIsDeleted(true);
+        driver.setIsActive(false);
+        driver.setVehicle(null);
         driverRepository.save(driver);
-        log.info("Đã xóa mềm hồ sơ tài xế với ID: {}", id);
+
+        // 2. Vô hiệu hóa tài khoản Account liên kết
+        if (driver.getStaff() != null && driver.getStaff().getAccount() != null) {
+            Account account = driver.getStaff().getAccount();
+            account.setStatus(AccountStatus.INACTIVE);
+            account.setIsDeleted(true);
+            accountRepository.save(account);
+            log.info("Đã vô hiệu hóa tài khoản liên kết với tài xế: {}", account.getUsername());
+        }
+
+        // 3. Xóa dữ liệu khuôn mặt trong file .pkl và RAM của FastAPI AI
+        faceRecognitionService.deleteDriver(id);
+
+        log.info("Đã xóa hoàn tất hồ sơ tài xế với ID: {} trên cả Database và AI Server", id);
     }
 
     private Driver findDriverOrThrow(String id) {
@@ -294,8 +320,6 @@ public class DriverServiceImpl implements DriverService {
                     .status(veh.getStatus())
                     .build();
         }
-
-
 
         return DriverResponse.builder()
                 .id(driver.getId())

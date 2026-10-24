@@ -74,6 +74,7 @@ public class AuthServiceImpl implements AuthService {
                 .map(this::toStaffResponse)
                 .orElse(null);
 
+        String driverId = getDriverIdForAccount(account);
         VehicleBasicResponse assignedVehicle = getAssignedVehicleForAccount(account);
 
         return AuthResponse.builder()
@@ -81,6 +82,7 @@ public class AuthServiceImpl implements AuthService {
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getJwtExpirationMs())
                 .accountId(account.getId())
+                .driverId(driverId)
                 .username(account.getUsername())
                 .role(account.getRole())
                 .status(account.getStatus())
@@ -98,10 +100,12 @@ public class AuthServiceImpl implements AuthService {
                 .map(this::toStaffResponse)
                 .orElse(null);
 
+        String driverId = getDriverIdForAccount(account);
         VehicleBasicResponse assignedVehicle = getAssignedVehicleForAccount(account);
 
         return AuthResponse.builder()
                 .accountId(account.getId())
+                .driverId(driverId)
                 .username(account.getUsername())
                 .role(account.getRole())
                 .status(account.getStatus())
@@ -109,6 +113,15 @@ public class AuthServiceImpl implements AuthService {
                 .staff(staffResponse)
                 .assignedVehicle(assignedVehicle)
                 .build();
+    }
+
+    private String getDriverIdForAccount(Account account) {
+        if (account.getRole() != AccountRole.DRIVER) {
+            return null;
+        }
+        return driverRepository.findByStaffAccountIdAndIsDeletedFalse(account.getId())
+                .map(com.safedriving.entity.Driver::getId)
+                .orElse(null);
     }
 
     private VehicleBasicResponse getAssignedVehicleForAccount(Account account) {

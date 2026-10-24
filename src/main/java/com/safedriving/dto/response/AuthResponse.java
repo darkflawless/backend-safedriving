@@ -1,5 +1,6 @@
 package com.safedriving.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.safedriving.entity.enums.AccountRole;
 import com.safedriving.entity.enums.AccountStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "Thông tin phản hồi sau khi xác thực thành công")
 public class AuthResponse {
 
@@ -29,6 +31,9 @@ public class AuthResponse {
 
     @Schema(description = "ID của tài khoản")
     private String accountId;
+
+    @Schema(description = "ID hồ sơ tài xế (nếu tài khoản là DRIVER)")
+    private String driverId;
 
     @Schema(description = "Tên đăng nhập")
     private String username;

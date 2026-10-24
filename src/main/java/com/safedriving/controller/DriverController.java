@@ -26,19 +26,28 @@ import java.util.List;
 @RequestMapping("/drivers")
 @RequiredArgsConstructor
 @Tag(name = "Drivers", description = "APIs Quản lý Hồ sơ Tài xế")
-@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
 public class DriverController {
 
     private final DriverService driverService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Xem danh sách tài xế đang quản lý", description = "Lấy danh sách tất cả các tài xế còn hoạt động/chưa bị xóa.")
     public ResponseEntity<ApiResponse<List<DriverResponse>>> getAllDrivers() {
         List<DriverResponse> responses = driverService.getAllDrivers();
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách tài xế thành công", responses));
     }
 
+    @GetMapping("/me")
+    @PreAuthorize("hasAnyRole('DRIVER', 'ADMIN', 'MANAGER')")
+    @Operation(summary = "Lấy hồ sơ cá nhân của tài xế hiện tại", description = "Lấy thông tin chi tiết hồ sơ tài xế của tài khoản đang đăng nhập từ Token.")
+    public ResponseEntity<ApiResponse<DriverResponse>> getMyDriverProfile(@org.springframework.security.core.annotation.AuthenticationPrincipal com.safedriving.security.CustomUserDetails userDetails) {
+        DriverResponse response = driverService.getMyDriverProfile(userDetails.getAccount().getId());
+        return ResponseEntity.ok(ApiResponse.success("Lấy thông tin tài xế thành công", response));
+    }
+
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'DRIVER')")
     @Operation(summary = "Tra cứu hồ sơ chi tiết một tài xế", description = "Tra cứu chi tiết hồ sơ tài xế theo mã định danh (ID).")
     public ResponseEntity<ApiResponse<DriverResponse>> getDriverById(@PathVariable String id) {
         DriverResponse response = driverService.getDriverById(id);
@@ -46,6 +55,7 @@ public class DriverController {
     }
 
     @PostMapping(consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Tạo hồ sơ tài xế trọn gói (JSON)", description = "Tạo tài khoản Account (role DRIVER), hồ sơ nhân sự Staff và Driver trong một transaction duy nhất.")
     public ResponseEntity<ApiResponse<DriverResponse>> createDriver(@Valid @RequestBody com.safedriving.dto.request.DriverCreateRequest request) {
         DriverResponse response = driverService.createDriver(request, null);
@@ -57,6 +67,7 @@ public class DriverController {
     private final jakarta.validation.Validator validator;
 
     @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Tạo hồ sơ tài xế trọn gói kèm ảnh đại diện (Multipart)", description = "Tạo trọn gói Account, Staff, Driver và tự động upload ảnh lên S3/MinIO, đồng bộ khuôn mặt sang FastAPI (InsightFace).")
     public ResponseEntity<ApiResponse<DriverResponse>> createDriverWithAvatar(
             @io.swagger.v3.oas.annotations.Parameter(
@@ -85,6 +96,7 @@ public class DriverController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Cập nhật thông tin hồ sơ tài xế", description = "Cập nhật dữ liệu hồ sơ tài xế theo ID.")
     public ResponseEntity<ApiResponse<DriverResponse>> updateDriver(
             @PathVariable String id,
@@ -94,6 +106,7 @@ public class DriverController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Xóa thông tin tài xế", description = "Xóa mềm hồ sơ tài xế theo ID.")
     public ResponseEntity<ApiResponse<Void>> deleteDriver(@PathVariable String id) {
         driverService.deleteDriver(id);
