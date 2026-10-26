@@ -45,6 +45,7 @@ public class MqttMessageDispatcherImpl implements MqttMessageDispatcher {
     private final HitlReviewCaseRepository hitlReviewCaseRepository;
     private final DeviceHeartbeatRepository deviceHeartbeatRepository;
     private final SseBroadcasterService sseBroadcasterService;
+    private final com.safedriving.service.GeofenceService geofenceService;
 
     // Cache thông tin biển số và tên tài xế 30 giây để tránh query liên tục khi GPS gửi 1Hz
     private final java.util.Map<String, CachedVehicleInfo> vehicleCache = new java.util.concurrent.ConcurrentHashMap<>();
@@ -229,6 +230,19 @@ public class MqttMessageDispatcherImpl implements MqttMessageDispatcher {
 
         // Phát sóng tức thời tọa độ GPS xe tới các Client Dashboard
         sseBroadcasterService.broadcast("gps", root);
+
+        // Kiểm tra Geofence Điểm đen tai nạn (bán kính 200m)
+        try {
+            String vehicleId = root.path("vehicle_id").asText(null);
+            Double lat = root.has("latitude") ? root.get("latitude").asDouble() : null;
+            Double lng = root.has("longitude") ? root.get("longitude").asDouble() : null;
+            Double speed = root.has("speed_kmh") ? root.get("speed_kmh").asDouble() : 0.0;
+            if (vehicleId != null && lat != null && lng != null) {
+                geofenceService.checkBlackspotGeofence(vehicleId, lat, lng, speed);
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi kiểm tra Geofence: {}", e.getMessage());
+        }
     }
 
     private void handleHeartbeatMessage(JsonNode root) {

@@ -53,6 +53,7 @@ springdoc:
 
 # Cấu hình kết nối FastAPI Nhận diện khuôn mặt
 face-recognition:
+  enabled: ${FACE_RECOGNITION_ENABLED:false}
   base-url: ${FACE_RECOGNITION_URL:http://localhost:8000}
 
 # Cấu hình MQTT Broker (EMQX)

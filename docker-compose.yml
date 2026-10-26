@@ -38,7 +38,7 @@ services:
       retries: 5
 
   minio:
-    image: coollabsio/minio:latest
+    image: pgsty/silo:latest
     container_name: safedriving-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

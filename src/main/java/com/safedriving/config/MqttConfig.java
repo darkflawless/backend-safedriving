@@ -92,4 +92,22 @@ public class MqttConfig {
             dispatcher.dispatch(topic, payload);
         };
     }
+
+    @Bean
+    public MessageChannel mqttOutboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "mqttOutboundChannel")
+    public MessageHandler mqttOutboundHandler(MqttPahoClientFactory mqttClientFactory) {
+        String randomSuffix = UUID.randomUUID().toString().substring(0, 4);
+        String outboundClientId = String.format("%s_outbound_%s", clientId, randomSuffix);
+        org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler messageHandler =
+                new org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler(outboundClientId, mqttClientFactory);
+        messageHandler.setAsync(true);
+        messageHandler.setDefaultQos(qos);
+        log.info("🔌 Khởi tạo MQTT Outbound Message Handler: broker={}, clientId={}", brokerUrl, outboundClientId);
+        return messageHandler;
+    }
 }

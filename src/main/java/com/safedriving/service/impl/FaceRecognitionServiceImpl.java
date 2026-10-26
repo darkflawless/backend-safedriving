@@ -21,10 +21,13 @@ public class FaceRecognitionServiceImpl implements FaceRecognitionService {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final boolean enabled;
 
     public FaceRecognitionServiceImpl(
+            @Value("${face-recognition.enabled:false}") boolean enabled,
             @Value("${face-recognition.base-url:http://localhost:8000}") String baseUrl,
             ObjectMapper objectMapper) {
+        this.enabled = enabled;
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .build();
@@ -33,6 +36,11 @@ public class FaceRecognitionServiceImpl implements FaceRecognitionService {
 
     @Override
     public void enrollDriver(String driverId, MultipartFile image, boolean overwrite) {
+        if (!enabled) {
+            log.info("Tính năng nhận diện khuôn mặt FastAPI đang tắt (face-recognition.enabled=false). Bỏ qua enroll cho tài xế [{}]", driverId);
+            return;
+        }
+
         if (image == null || image.isEmpty()) {
             throw new BadRequestException("File ảnh không được để trống khi đăng ký khuôn mặt");
         }
@@ -83,6 +91,11 @@ public class FaceRecognitionServiceImpl implements FaceRecognitionService {
 
     @Override
     public void deleteDriver(String driverId) {
+        if (!enabled) {
+            log.info("Tính năng nhận diện khuôn mặt FastAPI đang tắt (face-recognition.enabled=false). Bỏ qua xóa khuôn mặt tài xế [{}]", driverId);
+            return;
+        }
+
         try {
             log.info("Gửi yêu cầu xóa khuôn mặt tài xế [{}] khỏi FastAPI...", driverId);
             restClient.delete()

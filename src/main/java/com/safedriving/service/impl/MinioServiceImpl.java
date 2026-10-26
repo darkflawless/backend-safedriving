@@ -9,6 +9,7 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.SetBucketPolicyArgs;
 import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +57,32 @@ public class MinioServiceImpl implements MinioService {
                 log.info("✅ Đã tự động tạo MinIO Bucket: {}", bucketName);
             } else {
                 log.info("✅ MinIO Bucket '{}' đã tồn tại và sẵn sàng", bucketName);
+            }
+
+            // Đặt policy anonymous download (Public Read) để trình duyệt web hiển thị trực tiếp ảnh
+            try {
+                String config = """
+                        {
+                          "Version": "2012-10-17",
+                          "Statement": [
+                            {
+                              "Effect": "Allow",
+                              "Principal": {"AWS": ["*"]},
+                              "Action": ["s3:GetObject"],
+                              "Resource": ["arn:aws:s3:::%s/*"]
+                            }
+                          ]
+                        }
+                        """.formatted(bucketName);
+                minioClient.setBucketPolicy(
+                        SetBucketPolicyArgs.builder()
+                                .bucket(bucketName)
+                                .config(config)
+                                .build()
+                );
+                log.info("✅ Đã kích hoạt Public Read cho MinIO Bucket: {}", bucketName);
+            } catch (Exception pe) {
+                log.warn("⚠️ Không thể set public policy cho bucket {}: {}", bucketName, pe.getMessage());
             }
         } catch (Exception e) {
             log.warn("⚠️ Không thể kết nối hoặc khởi tạo MinIO Bucket '{}': {}. Sẽ thử lại khi có request.", bucketName, e.getMessage());
