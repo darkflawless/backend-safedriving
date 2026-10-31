@@ -23,4 +23,14 @@ public class AssignmentResponse {
     private String vehicleId;
     private String routeCode;
     private String routeName;
+
+    private String startLocation;
+    private String endLocation;
+    private Double distanceKm;
+    private String status;
+    private LocalDateTime plannedStartTime;
+    private LocalDateTime plannedEndTime;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
+    private String note;
 }

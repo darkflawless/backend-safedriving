@@ -20,10 +20,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.safedriving.security.CustomUserDetails;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/assignments")
+@RequestMapping({"/assignments", "/api/v1/assignments"})
 @RequiredArgsConstructor
 @Tag(name = "05. Assignments", description = "Phân công tài xế đảm nhận chuyến đi")
 public class AssignmentController {
@@ -35,6 +41,17 @@ public class AssignmentController {
     @Operation(summary = "Xem tất cả phân công (ADMIN, MANAGER, DRIVER)")
     public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách phân công thành công", assignmentService.getAll()));
+    }
+
+    @GetMapping("/me/today")
+    @PreAuthorize("hasAnyRole('DRIVER', 'ADMIN', 'MANAGER')")
+    @Operation(summary = "Xem lịch phân công trong ngày của tài xế đang đăng nhập (DRIVER, ADMIN, MANAGER)")
+    public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getTodayForCurrentDriver(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách phân công trong ngày thành công",
+                assignmentService.getTodayAssignmentsForCurrentDriver(userDetails, date)));
     }
 
     @GetMapping("/{id}")
@@ -49,6 +66,17 @@ public class AssignmentController {
     @Operation(summary = "Xem chuyến đi được phân công cho tài xế (ADMIN, MANAGER, DRIVER)")
     public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getByDriverId(@PathVariable String driverId) {
         return ResponseEntity.ok(ApiResponse.success("Lấy danh sách phân công của tài xế thành công", assignmentService.getByDriverId(driverId)));
+    }
+
+    @GetMapping("/driver/{driverId}/today")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'DRIVER')")
+    @Operation(summary = "Xem lịch phân công trong ngày theo mã tài xế (ADMIN, MANAGER, DRIVER)")
+    public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getTodayByDriverId(
+            @PathVariable String driverId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy danh sách phân công trong ngày của tài xế thành công",
+                assignmentService.getTodayByDriverId(driverId, date)));
     }
 
     @PostMapping

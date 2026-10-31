@@ -15,16 +15,19 @@ import com.safedriving.repository.AssignmentRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.TripRepository;
 import com.safedriving.service.AssignmentService;
+import com.safedriving.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AssignmentServiceImpl implements AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
@@ -52,6 +55,63 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    public List<AssignmentResponse> getTodayByDriverId(String driverId, LocalDate date) {
+        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+        List<Assignment> assignments = assignmentRepository.findByDriverIdAndIsDeletedFalse(driverId);
+
+        return assignments.stream()
+                .filter(a -> isAssignmentOnDate(a, targetDate))
+                .sorted((a1, a2) -> {
+                    LocalDateTime t1 = getSortTime(a1);
+                    LocalDateTime t2 = getSortTime(a2);
+                    if (t1 == null && t2 == null) return 0;
+                    if (t1 == null) return 1;
+                    if (t2 == null) return -1;
+                    return t1.compareTo(t2);
+                })
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AssignmentResponse> getTodayAssignmentsForCurrentDriver(CustomUserDetails userDetails, LocalDate date) {
+        String accountId = userDetails.getAccount().getId();
+        Driver driver = driverRepository.findByStaffAccountIdAndIsDeletedFalse(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế liên kết với tài khoản này"));
+        return getTodayByDriverId(driver.getId(), date);
+    }
+
+    private boolean isAssignmentOnDate(Assignment assignment, LocalDate targetDate) {
+        Trip trip = assignment.getTrip();
+        if (trip != null) {
+            // Nếu chuyến đang chạy (IN_PROGRESS), luôn ưu tiên hiển thị trong danh sách hôm nay
+            if (trip.getStatus() == TripStatus.IN_PROGRESS) {
+                return true;
+            }
+            if (trip.getPlannedStartTime() != null) {
+                return trip.getPlannedStartTime().toLocalDate().isEqual(targetDate);
+            }
+            if (trip.getStartTime() != null) {
+                return trip.getStartTime().toLocalDate().isEqual(targetDate);
+            }
+        }
+        if (assignment.getAssignmentAt() != null) {
+            return assignment.getAssignmentAt().toLocalDate().isEqual(targetDate);
+        }
+        return false;
+    }
+
+    private LocalDateTime getSortTime(Assignment assignment) {
+        Trip trip = assignment.getTrip();
+        if (trip != null) {
+            if (trip.getPlannedStartTime() != null) return trip.getPlannedStartTime();
+            if (trip.getStartTime() != null) return trip.getStartTime();
+        }
+        return assignment.getAssignmentAt();
+    }
+
 
     @Override
     @Transactional
@@ -158,7 +218,10 @@ public class AssignmentServiceImpl implements AssignmentService {
 
         String vehiclePlate = null;
         String vehicleId = null;
-        if (driver != null && driver.getVehicle() != null) {
+        if (trip != null && trip.getVehicle() != null) {
+            vehiclePlate = trip.getVehicle().getPlateNumber();
+            vehicleId = trip.getVehicle().getId();
+        } else if (driver != null && driver.getVehicle() != null) {
             vehiclePlate = driver.getVehicle().getPlateNumber();
             vehicleId = driver.getVehicle().getId();
         }
@@ -181,6 +244,15 @@ public class AssignmentServiceImpl implements AssignmentService {
                 .vehicleId(vehicleId)
                 .routeCode(routeCode)
                 .routeName(routeName)
+                .startLocation(trip != null ? trip.getStartLocation() : null)
+                .endLocation(trip != null ? trip.getEndLocation() : null)
+                .distanceKm(trip != null ? trip.getDistanceKm() : null)
+                .status(trip != null && trip.getStatus() != null ? trip.getStatus().name() : null)
+                .plannedStartTime(trip != null ? trip.getPlannedStartTime() : null)
+                .plannedEndTime(trip != null ? trip.getPlannedEndTime() : null)
+                .startTime(trip != null ? trip.getStartTime() : null)
+                .endTime(trip != null ? trip.getEndTime() : null)
+                .note(trip != null ? trip.getNote() : null)
                 .build();
     }
 }
