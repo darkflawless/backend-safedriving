@@ -5,9 +5,12 @@ server:
 spring:
   application:
     name: driver-management-system
+  output:
+    ansi:
+      enabled: ALWAYS
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/driver_management
+    url: jdbc:postgresql://localhost:5432/db_driver_management
     username: postgres
     password: 123456
     driver-class-name: org.postgresql.Driver
@@ -17,10 +20,10 @@ spring:
       # update: tự tạo/cập nhật bảng theo entity khi khởi động (phù hợp môi trường dev local)
       # đổi thành "validate" hoặc "none" khi lên môi trường thật + dùng migration tool (Flyway/Liquibase)
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
 
@@ -29,18 +32,49 @@ spring:
     default-property-inclusion: non_null
 
 logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
   level:
-    com.safedriving: DEBUG
-    org.hibernate.SQL: DEBUG
+    com.safedriving: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
 
 # Cấu hình JWT (đổi secret khi deploy thật, không commit secret thật lên git)
 app:
   jwt:
     secret: "CHANGE_THIS_SECRET_KEY_TO_SOMETHING_LONG_AND_RANDOM_BEFORE_PRODUCTION_0123456789"
-    expiration-ms: 86400000 # 24h
+    expiration-ms: 3600000 # 1 giờ (JWT token ngắn hạn, stateless không lưu DB)
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
   api-docs:
     path: /api-docs
+
+# Cấu hình kết nối FastAPI Nhận diện khuôn mặt
+face-recognition:
+  enabled: ${FACE_RECOGNITION_ENABLED:false}
+  base-url: ${FACE_RECOGNITION_URL:http://localhost:8000}
+
+# Cấu hình MQTT Broker (EMQX)
+mqtt:
+  enabled: ${MQTT_ENABLED:true}
+  broker-url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client-id: ${MQTT_CLIENT_ID:safedriving-backend}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+  default-topic: ${MQTT_DEFAULT_TOPIC:driverguard/#}
+  qos: ${MQTT_QOS:1}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  bucket-name: ${MINIO_BUCKET_NAME:driverguard-media}
+  expiry-seconds: ${MINIO_EXPIRY_SECONDS:3600}
+
+# UDP Server nhận stream từ camera thiết bị trên xe
+udp:
+  camera:
+    port: ${UDP_CAMERA_PORT:9090}         # Cổng nhận UDP từ App
+    buffer-size: ${UDP_BUFFER_SIZE:65507} # Kích thước buffer tối đa của UDP packet

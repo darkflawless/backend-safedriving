@@ -27,6 +27,12 @@
 @REM   MVNW_VERBOSE - true: enable verbose log; others: silence the output
 @REM ----------------------------------------------------------------------------
 
+@IF "%JAVA_HOME%"=="" (
+  @IF EXIST "C:\Program Files\Amazon Corretto\jdk25.0.4_10" (
+    @SET "JAVA_HOME=C:\Program Files\Amazon Corretto\jdk25.0.4_10"
+    @SET "PATH=C:\Program Files\Amazon Corretto\jdk25.0.4_10\bin;%PATH%"
+  )
+)
 @IF "%__MVNW_ARG0_NAME__%"=="" (SET __MVNW_ARG0_NAME__=%~nx0)
 @SET __MVNW_CMD__=
 @SET __MVNW_ERROR__=
