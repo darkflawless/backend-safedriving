@@ -6,6 +6,7 @@ import com.safedriving.dto.request.TripRequest;
 import com.safedriving.dto.response.TripGpsTrackResponse;
 import com.safedriving.dto.response.TripResponse;
 import com.safedriving.entity.enums.TripStatus;
+import com.safedriving.security.CustomUserDetails;
 import com.safedriving.service.TripService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +14,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -102,6 +105,26 @@ public class TripController {
     public ResponseEntity<ApiResponse<TripResponse>> getActiveTripByDriver(@PathVariable String driverId) {
         TripResponse trip = tripService.getActiveTripByDriver(driverId);
         return ResponseEntity.ok(ApiResponse.success("Lấy chuyến đi hiện tại thành công", trip));
+    }
+
+    @GetMapping("/me/history")
+    @PreAuthorize("hasAnyRole('DRIVER', 'ADMIN', 'MANAGER')")
+    @Operation(summary = "Lấy lịch sử chuyến đi của tài xế đang đăng nhập", description = "Tài xế xem lịch sử các chuyến đi của mình theo Token xác thực, sắp xếp mới nhất lên đầu, hỗ trợ lọc theo status")
+    public ResponseEntity<ApiResponse<List<TripResponse>>> getMyTripHistory(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) TripStatus status) {
+        List<TripResponse> trips = tripService.getMyTripHistory(userDetails, status);
+        return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử chuyến đi thành công", trips));
+    }
+
+    @GetMapping("/driver/{driverId}/history")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'DRIVER')")
+    @Operation(summary = "Lấy lịch sử chuyến đi theo mã tài xế", description = "Xem lịch sử các chuyến đi của tài xế theo driverId, sắp xếp mới nhất lên đầu, hỗ trợ lọc theo status")
+    public ResponseEntity<ApiResponse<List<TripResponse>>> getTripHistoryByDriver(
+            @PathVariable String driverId,
+            @RequestParam(required = false) TripStatus status) {
+        List<TripResponse> trips = tripService.getTripHistoryByDriver(driverId, status);
+        return ResponseEntity.ok(ApiResponse.success("Lấy lịch sử chuyến đi của tài xế thành công", trips));
     }
 
     @PostMapping("/{id}/tracks")

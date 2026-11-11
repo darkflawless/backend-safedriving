@@ -79,6 +79,28 @@ public class AssignmentController {
                 assignmentService.getTodayByDriverId(driverId, date)));
     }
 
+    @GetMapping("/me/history")
+    @PreAuthorize("hasAnyRole('DRIVER', 'ADMIN', 'MANAGER')")
+    @Operation(summary = "Xem lịch sử chuyến đi của tài xế đang đăng nhập", description = "Lấy toàn bộ lịch sử các chuyến đi của tài xế (sắp xếp chuyến mới nhất lên đầu), hỗ trợ lọc theo trạng thái status=COMPLETED, CANCELLED...")
+    public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getHistoryForCurrentDriver(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy lịch sử chuyến đi thành công",
+                assignmentService.getHistoryForCurrentDriver(userDetails, status)));
+    }
+
+    @GetMapping("/driver/{driverId}/history")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'DRIVER')")
+    @Operation(summary = "Xem lịch sử chuyến đi theo mã tài xế (ADMIN, MANAGER, DRIVER)", description = "Lấy lịch sử các chuyến đi của tài xế theo driverId, sắp xếp mới nhất lên đầu")
+    public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getHistoryByDriverId(
+            @PathVariable String driverId,
+            @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Lấy lịch sử chuyến đi của tài xế thành công",
+                assignmentService.getHistoryByDriverId(driverId, status)));
+    }
+
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Phân công tài xế nhận chuyến (ADMIN, MANAGER)")
