@@ -28,6 +28,10 @@ public interface TripService {
 
     TripResponse getActiveTripByDriver(String driverId);
 
+    List<TripResponse> getMyTripHistory(com.safedriving.security.CustomUserDetails userDetails, TripStatus status);
+
+    List<TripResponse> getTripHistoryByDriver(String driverId, TripStatus status);
+
     TripGpsTrackResponse recordGpsTrack(String tripId, TripGpsTrackRequest request);
 
     List<TripGpsTrackResponse> getGpsTracks(String tripId);

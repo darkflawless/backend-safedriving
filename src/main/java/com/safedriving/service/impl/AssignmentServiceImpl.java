@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,7 +59,7 @@ public class AssignmentServiceImpl implements AssignmentService {
 
     @Override
     public List<AssignmentResponse> getTodayByDriverId(String driverId, LocalDate date) {
-        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+        LocalDate targetDate = (date != null) ? date : LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         List<Assignment> assignments = assignmentRepository.findByDriverIdAndIsDeletedFalse(driverId);
 
         return assignments.stream()
@@ -83,22 +84,75 @@ public class AssignmentServiceImpl implements AssignmentService {
         return getTodayByDriverId(driver.getId(), date);
     }
 
+    @Override
+    public List<AssignmentResponse> getHistoryForCurrentDriver(CustomUserDetails userDetails, String status) {
+        String accountId = userDetails.getAccount().getId();
+        Driver driver = driverRepository.findByStaffAccountIdAndIsDeletedFalse(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế liên kết với tài khoản này"));
+        return getHistoryByDriverId(driver.getId(), status);
+    }
+
+    @Override
+    public List<AssignmentResponse> getHistoryByDriverId(String driverId, String status) {
+        List<Assignment> assignments = assignmentRepository.findByDriverIdAndIsDeletedFalse(driverId);
+
+        return assignments.stream()
+                .filter(a -> {
+                    Trip trip = a.getTrip();
+                    if (trip == null) return false;
+
+                    // Lịch sử chuyến đi: chỉ lấy các chuyến đã kết thúc (COMPLETED hoặc CANCELLED)
+                    TripStatus tripStatus = trip.getStatus();
+                    if (tripStatus != TripStatus.COMPLETED && tripStatus != TripStatus.CANCELLED) {
+                        return false;
+                    }
+
+                    if (status != null && !status.isBlank()) {
+                        return status.equalsIgnoreCase(tripStatus.name());
+                    }
+                    return true;
+                })
+                .sorted((a1, a2) -> {
+                    LocalDateTime t1 = getSortTime(a1);
+                    LocalDateTime t2 = getSortTime(a2);
+                    if (t1 == null && t2 == null) return 0;
+                    if (t1 == null) return 1;
+                    if (t2 == null) return -1;
+                    return t2.compareTo(t1); // Chuyến mới nhất lên đầu
+                })
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private boolean isAssignmentOnDate(Assignment assignment, LocalDate targetDate) {
         Trip trip = assignment.getTrip();
         if (trip != null) {
-            // Nếu chuyến đang chạy (IN_PROGRESS), luôn ưu tiên hiển thị trong danh sách hôm nay
+            // 1. Nếu chuyến đang chạy (IN_PROGRESS), luôn hiển thị
             if (trip.getStatus() == TripStatus.IN_PROGRESS) {
                 return true;
             }
-            if (trip.getPlannedStartTime() != null) {
-                return trip.getPlannedStartTime().toLocalDate().isEqual(targetDate);
+            // 2. Chuyến đã hoàn thành hoặc đã hủy: chỉ hiện nếu bắt đầu đúng ngày hôm nay
+            if (trip.getStatus() == TripStatus.COMPLETED || trip.getStatus() == TripStatus.CANCELLED) {
+                if (trip.getStartTime() != null && trip.getStartTime().toLocalDate().isEqual(targetDate)) {
+                    return true;
+                }
+                if (trip.getPlannedStartTime() != null && trip.getPlannedStartTime().toLocalDate().isEqual(targetDate)) {
+                    return true;
+                }
+                return false;
             }
-            if (trip.getStartTime() != null) {
-                return trip.getStartTime().toLocalDate().isEqual(targetDate);
+            // 3. Trùng ngày dự kiến xuất phát của chuyến đi
+            if (trip.getPlannedStartTime() != null && trip.getPlannedStartTime().toLocalDate().isEqual(targetDate)) {
+                return true;
+            }
+            // 4. Trùng ngày bắt đầu thực tế của chuyến đi
+            if (trip.getStartTime() != null && trip.getStartTime().toLocalDate().isEqual(targetDate)) {
+                return true;
             }
         }
-        if (assignment.getAssignmentAt() != null) {
-            return assignment.getAssignmentAt().toLocalDate().isEqual(targetDate);
+        // 5. Trùng đúng ngày được phân công (assignmentAt)
+        if (assignment.getAssignmentAt() != null && assignment.getAssignmentAt().toLocalDate().isEqual(targetDate)) {
+            return true;
         }
         return false;
     }

@@ -390,6 +390,34 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<TripResponse> getMyTripHistory(com.safedriving.security.CustomUserDetails userDetails, TripStatus status) {
+        String accountId = userDetails.getAccount().getId();
+        Driver driver = driverRepository.findByStaffAccountIdAndIsDeletedFalse(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế liên kết với tài khoản này"));
+        return getTripHistoryByDriver(driver.getId(), status);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TripResponse> getTripHistoryByDriver(String driverId, TripStatus status) {
+        List<Trip> trips = tripRepository.findByDriverIdAndIsDeletedFalseOrderByStartTimeDesc(driverId);
+        return trips.stream()
+                .filter(t -> {
+                    // Lịch sử chuyến đi: chỉ lấy các chuyến đã kết thúc (COMPLETED hoặc CANCELLED)
+                    if (t.getStatus() != TripStatus.COMPLETED && t.getStatus() != TripStatus.CANCELLED) {
+                        return false;
+                    }
+                    if (status != null) {
+                        return t.getStatus() == status;
+                    }
+                    return true;
+                })
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public TripGpsTrackResponse recordGpsTrack(String tripId, TripGpsTrackRequest request) {
         Trip trip = tripRepository.findByIdAndIsDeletedFalse(tripId)

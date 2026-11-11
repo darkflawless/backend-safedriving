@@ -10,11 +10,22 @@ import java.util.List;
 
 public interface AssignmentService {
     List<AssignmentResponse> getAll();
+
     AssignmentResponse getById(String id);
+
     List<AssignmentResponse> getByDriverId(String driverId);
+
     List<AssignmentResponse> getTodayByDriverId(String driverId, LocalDate date);
+
     List<AssignmentResponse> getTodayAssignmentsForCurrentDriver(CustomUserDetails userDetails, LocalDate date);
+
+    List<AssignmentResponse> getHistoryForCurrentDriver(CustomUserDetails userDetails, String status);
+
+    List<AssignmentResponse> getHistoryByDriverId(String driverId, String status);
+
     AssignmentResponse create(AssignmentRequest request);
+
     AssignmentResponse update(String id, AssignmentRequest request);
+
     void delete(String id);
 }
