@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,10 +35,10 @@ public class HitlController {
     private final HitlService hitlService;
 
     @GetMapping("/queue")
-    @Operation(summary = "Lấy hàng đợi vi phạm cần duyệt (HITL Queue)",
-            description = "Trả về danh sách vi phạm đang ở trạng thái PENDING (hoặc APPROVED, REJECTED) kèm ảnh bằng chứng và sinh trắc học.")
+    @Operation(summary = "Lấy danh sách vi phạm (HITL Queue)",
+            description = "Trả về danh sách vi phạm đã lưu kèm ảnh bằng chứng và sinh trắc học.")
     public ResponseEntity<ApiResponse<Page<HitlCaseResponse>>> getQueue(
-            @RequestParam(required = false, defaultValue = "PENDING") HitlStatus status,
+            @RequestParam(required = false, defaultValue = "APPROVED") HitlStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<HitlCaseResponse> responses = hitlService.getQueue(
@@ -64,5 +65,12 @@ public class HitlController {
             @Valid @RequestBody HitlReviewDecisionRequest request) {
         HitlCaseResponse response = hitlService.reviewCase(id, reviewer, request);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật quyết định kiểm duyệt thành công", response));
+    }
+
+    @DeleteMapping("/all")
+    @Operation(summary = "Xóa toàn bộ lịch sử vi phạm để test dữ liệu mới")
+    public ResponseEntity<ApiResponse<Void>> clearAllCases() {
+        hitlService.clearAll();
+        return ResponseEntity.ok(ApiResponse.success("Đã xóa toàn bộ lịch sử vi phạm", null));
     }
 }

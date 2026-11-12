@@ -14,6 +14,7 @@ import com.safedriving.entity.TripGpsTrack;
 import com.safedriving.entity.Vehicle;
 import com.safedriving.entity.enums.TripStatus;
 import com.safedriving.entity.enums.VehicleStatus;
+import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AccountRepository;
 import com.safedriving.repository.AssignmentRepository;
@@ -271,71 +272,59 @@ public class TripServiceImpl implements TripService {
         Trip trip = tripRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + id));
 
-        // 1. Tìm các phương tiện đang sẵn sàng (AVAILABLE)
-        List<Vehicle> availableVehicles = vehicleRepository.findByStatusAndIsDeletedFalse(VehicleStatus.AVAILABLE);
-        if (availableVehicles.isEmpty()) {
-            throw new RuntimeException("Hiện không có phương tiện nào đang rảnh (AVAILABLE) để nổ đơn tự động!");
+        if (trip.getStatus() != TripStatus.PLANNED) {
+            throw new BadRequestException("Chuyến đi này hiện có trạng thái là '" + trip.getStatus().name()
+                    + "'. Chỉ có thể tự động phân công cho chuyến đi đang 'Lên kế hoạch' (PLANNED)!");
         }
 
-        Vehicle selectedVehicle = null;
+        LocalDateTime newStart = trip.getPlannedStartTime();
+        LocalDateTime newEnd = trip.getPlannedEndTime();
+        if (newStart == null || newEnd == null) {
+            throw new BadRequestException("Chuyến đi phải có thời gian xuất phát và kết thúc dự kiến để hệ thống kiểm tra lịch tự động!");
+        }
+        if (newEnd.isBefore(newStart)) {
+            throw new BadRequestException("Thời gian đến nơi dự kiến không thể trước thời gian xuất phát!");
+        }
+
+        // Lấy danh sách tài xế hợp lệ: đang hoạt động, chưa bị xóa, đã được gán phương tiện
+        List<Driver> activeDrivers = driverRepository.findByIsDeletedFalse().stream()
+                .filter(d -> Boolean.TRUE.equals(d.getIsActive()))
+                .filter(d -> d.getVehicle() != null && !Boolean.TRUE.equals(d.getVehicle().getIsDeleted()))
+                .filter(d -> d.getVehicle().getStatus() != VehicleStatus.MAINTENANCE
+                        && d.getVehicle().getStatus() != VehicleStatus.OUT_OF_SERVICE)
+                .toList();
+
+        if (activeDrivers.isEmpty()) {
+            throw new BadRequestException("Hiện không có tài xế nào đang hoạt động và có phương tiện sẵn sàng trong hệ thống!");
+        }
+
         Driver selectedDriver = null;
+        Vehicle selectedVehicle = null;
 
-        // Ưu tiên 1: Tìm xe rảnh ĐÃ CÓ tài xế phụ trách (và tài xế đó đang hoạt động,
-        // không bận chuyến)
-        for (Vehicle v : availableVehicles) {
-            Optional<Driver> driverOpt = driverRepository.findByVehicleIdAndIsDeletedFalse(v.getId());
-            if (driverOpt.isPresent()) {
-                Driver d = driverOpt.get();
-                boolean isActive = Boolean.TRUE.equals(d.getIsActive());
-                boolean hasTripInProgress = tripRepository
-                        .findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(d.getId(),
-                                TripStatus.IN_PROGRESS)
-                        .isPresent();
-                if (isActive && !hasTripInProgress) {
-                    selectedVehicle = v;
-                    selectedDriver = d;
-                    break;
-                }
+        // Quét từng tài xế để tìm người rảnh trong khung giờ [newStart, newEnd]
+        for (Driver d : activeDrivers) {
+            Vehicle v = d.getVehicle();
+
+            // 1. Kiểm tra tài xế có bị trùng lịch chuyến nào không
+            boolean driverBusy = hasDriverTimeOverlap(d.getId(), newStart, newEnd, trip.getId());
+            if (driverBusy) {
+                continue;
             }
+
+            // 2. Kiểm tra phương tiện của tài xế có bị trùng lịch chuyến nào khác không
+            boolean vehicleBusy = hasVehicleTimeOverlap(v.getId(), newStart, newEnd, trip.getId());
+            if (vehicleBusy) {
+                continue;
+            }
+
+            selectedDriver = d;
+            selectedVehicle = v;
+            break;
         }
 
-        // Ưu tiên 2: Nếu không có cặp xe + tài xế cố định rảnh,
-        // tìm xe rảnh CHƯA ĐƯỢC GÁN cố định cho ai VÀ tài xế đang hoạt động CHƯA CÓ XE
-        // gán cố định
-        if (selectedVehicle == null || selectedDriver == null) {
-            // Lọc tài xế tự do: isActive = true, vehicle == null, không bận chuyến
-            // IN_PROGRESS
-            List<Driver> unassignedDrivers = driverRepository.findByIsDeletedFalse().stream()
-                    .filter(d -> Boolean.TRUE.equals(d.getIsActive()))
-                    .filter(d -> d.getVehicle() == null)
-                    .filter(d -> tripRepository
-                            .findFirstByDriverIdAndStatusAndIsDeletedFalseOrderByStartTimeDesc(d.getId(),
-                                    TripStatus.IN_PROGRESS)
-                            .isEmpty())
-                    .toList();
-
-            if (!unassignedDrivers.isEmpty()) {
-                // Ưu tiên chọn xe rảnh chưa gán tài xế cố định nào
-                for (Vehicle v : availableVehicles) {
-                    boolean hasAssignedDriver = driverRepository.findByVehicleIdAndIsDeletedFalse(v.getId())
-                            .isPresent();
-                    if (!hasAssignedDriver) {
-                        selectedVehicle = v;
-                        break;
-                    }
-                }
-                // Nếu tất cả xe rảnh đều đã được gán tài xế (nhưng tài xế cố định đang bận),
-                // dùng tạm xe rảnh đầu tiên
-                if (selectedVehicle == null) {
-                    selectedVehicle = availableVehicles.get(0);
-                }
-                selectedDriver = unassignedDrivers.get(0);
-            }
-        }
-
-        if (selectedVehicle == null || selectedDriver == null) {
-            throw new RuntimeException(
-                    "Không tìm thấy tài xế phù hợp đang rảnh để nổ đơn tự động! (Yêu cầu tài xế phụ trách xe rảnh hoặc tài xế tự do chưa gán xe)");
+        if (selectedDriver == null || selectedVehicle == null) {
+            throw new BadRequestException("Tất cả tài xế và phương tiện phù hợp đều đã bận hoặc trùng lịch trong khoảng thời gian "
+                    + newStart + " - " + newEnd + ". Không thể tự động phân công!");
         }
 
         trip.setVehicle(selectedVehicle);
@@ -343,7 +332,7 @@ public class TripServiceImpl implements TripService {
         trip.setStatus(TripStatus.ASSIGNED);
         Trip saved = tripRepository.save(trip);
 
-        // 3. Tự động ghi nhận lịch sử phân công vào bảng Assignment
+        // Tự động ghi nhận lịch sử phân công vào bảng Assignment
         Account operatorAccount = null;
         try {
             org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
@@ -369,9 +358,56 @@ public class TripServiceImpl implements TripService {
                 .build();
         assignmentRepository.save(assignment);
 
-        log.info("TỰ ĐỘNG NỔ ĐƠN THÀNH CÔNG: Chuyến {} -> Tài xế {} (Xe {})", saved.getId(), selectedDriver.getId(),
+        log.info("TỰ ĐỘNG PHÂN CÔNG THÀNH CÔNG: Chuyến {} -> Tài xế {} (Xe {})", saved.getId(), selectedDriver.getId(),
                 selectedVehicle.getPlateNumber());
         return mapToResponse(saved);
+    }
+
+    private boolean hasDriverTimeOverlap(String driverId, LocalDateTime newStart, LocalDateTime newEnd, String excludeTripId) {
+        List<Assignment> assignments = assignmentRepository.findByDriverIdAndIsDeletedFalse(driverId);
+        for (Assignment a : assignments) {
+            Trip t = a.getTrip();
+            if (t == null) continue;
+            if (excludeTripId != null && t.getId().equals(excludeTripId)) continue;
+            if (t.getStatus() == TripStatus.COMPLETED || t.getStatus() == TripStatus.CANCELLED) continue;
+
+            LocalDateTime tStart = t.getPlannedStartTime();
+            LocalDateTime tEnd = t.getPlannedEndTime();
+            if (tStart == null || tEnd == null) continue;
+
+            // Nếu chuyến đang chạy (IN_PROGRESS), thời gian kết thúc ít nhất là thời điểm hiện tại
+            LocalDateTime effectiveEnd = tEnd;
+            if (t.getStatus() == TripStatus.IN_PROGRESS && effectiveEnd.isBefore(LocalDateTime.now())) {
+                effectiveEnd = LocalDateTime.now();
+            }
+
+            if (newStart.isBefore(effectiveEnd) && newEnd.isAfter(tStart)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasVehicleTimeOverlap(String vehicleId, LocalDateTime newStart, LocalDateTime newEnd, String excludeTripId) {
+        List<Trip> trips = tripRepository.findByVehicleIdAndIsDeletedFalseOrderByStartTimeDesc(vehicleId);
+        for (Trip t : trips) {
+            if (excludeTripId != null && t.getId().equals(excludeTripId)) continue;
+            if (t.getStatus() == TripStatus.COMPLETED || t.getStatus() == TripStatus.CANCELLED || t.getStatus() == TripStatus.PLANNED) continue;
+
+            LocalDateTime tStart = t.getPlannedStartTime();
+            LocalDateTime tEnd = t.getPlannedEndTime();
+            if (tStart == null || tEnd == null) continue;
+
+            LocalDateTime effectiveEnd = tEnd;
+            if (t.getStatus() == TripStatus.IN_PROGRESS && effectiveEnd.isBefore(LocalDateTime.now())) {
+                effectiveEnd = LocalDateTime.now();
+            }
+
+            if (newStart.isBefore(effectiveEnd) && newEnd.isAfter(tStart)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

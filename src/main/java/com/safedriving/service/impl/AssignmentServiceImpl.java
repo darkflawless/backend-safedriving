@@ -181,6 +181,9 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new BadRequestException("Tài xế này chưa được gán phương tiện! Vui lòng gán xe cho tài xế trước khi phân công chuyến đi.");
         }
 
+        // Kiểm tra trùng lịch tài xế
+        checkDriverTimeOverlap(driver.getId(), trip.getPlannedStartTime(), trip.getPlannedEndTime(), null);
+
         Account account = accountRepository.findById(request.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + request.getAccountId()));
 
@@ -218,11 +221,15 @@ public class AssignmentServiceImpl implements AssignmentService {
             throw new BadRequestException("Tài xế này chưa được gán phương tiện! Vui lòng gán xe cho tài xế trước khi phân công chuyến đi.");
         }
 
+        // Kiểm tra trùng lịch tài xế (loại trừ chính assignment đang update)
+        checkDriverTimeOverlap(driver.getId(), trip.getPlannedStartTime(), trip.getPlannedEndTime(), assignment.getId());
+
         Account account = accountRepository.findById(request.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + request.getAccountId()));
 
         Trip oldTrip = assignment.getTrip();
-        if (oldTrip != null && !oldTrip.getId().equals(trip.getId())) {
+        if (oldTrip != null && !oldTrip.getId().equals(trip.getId())
+                && oldTrip.getStatus() == TripStatus.ASSIGNED) {
             oldTrip.setStatus(TripStatus.PLANNED);
             oldTrip.setDriver(null);
             oldTrip.setVehicle(null);
@@ -250,11 +257,30 @@ public class AssignmentServiceImpl implements AssignmentService {
         assignmentRepository.save(assignment);
 
         Trip trip = assignment.getTrip();
-        if (trip != null) {
+        if (trip != null && trip.getStatus() == TripStatus.ASSIGNED) {
             trip.setStatus(TripStatus.PLANNED);
             trip.setDriver(null);
             trip.setVehicle(null);
             tripRepository.save(trip);
+        }
+    }
+
+    private void checkDriverTimeOverlap(String driverId, LocalDateTime newStart, LocalDateTime newEnd, String excludeAssignmentId) {
+        if (newStart == null || newEnd == null) return;
+        List<Assignment> existing = assignmentRepository.findByDriverIdAndIsDeletedFalse(driverId);
+        for (Assignment a : existing) {
+            if (excludeAssignmentId != null && a.getId().equals(excludeAssignmentId)) continue;
+            Trip t = a.getTrip();
+            if (t == null) continue;
+            if (t.getStatus() == TripStatus.COMPLETED || t.getStatus() == TripStatus.CANCELLED) continue;
+            LocalDateTime tStart = t.getPlannedStartTime();
+            LocalDateTime tEnd = t.getPlannedEndTime();
+            if (tStart == null || tEnd == null) continue;
+            if (newStart.isBefore(tEnd) && newEnd.isAfter(tStart)) {
+                throw new BadRequestException(
+                    "Tài xế đã được phân công chuyến đi khác trong khoảng thời gian này ("
+                    + tStart + " - " + tEnd + "). Vui lòng chọn thời gian khác.");
+            }
         }
     }
 

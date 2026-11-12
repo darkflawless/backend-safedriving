@@ -16,4 +16,9 @@ public class IncidentResponse {
     private IncidentType type;
     private String description;
     private IncidentSeverity severity;
+
+    // Thông tin chuyến đi để hiển thị trên UI
+    private String tripStartLocation;
+    private String tripEndLocation;
+    private LocalDateTime tripPlannedStartTime;
 }

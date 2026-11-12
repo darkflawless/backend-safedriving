@@ -14,4 +14,6 @@ public interface HitlService {
     HitlCaseResponse getCaseById(String id);
 
     HitlCaseResponse reviewCase(String id, CustomUserDetails reviewer, HitlReviewDecisionRequest request);
+
+    void clearAll();
 }
