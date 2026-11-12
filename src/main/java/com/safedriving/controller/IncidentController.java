@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/incidents")
+@RequestMapping({ "/incidents", "/api/v1/incidents" })
 @RequiredArgsConstructor
 @Tag(name = "06. Incidents", description = "Ghi nhận sự cố kỹ thuật, hỏng hóc, tai nạn")
 public class IncidentController {

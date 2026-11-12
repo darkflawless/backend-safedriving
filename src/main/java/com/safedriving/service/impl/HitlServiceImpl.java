@@ -12,6 +12,7 @@ import com.safedriving.entity.Vehicle;
 import com.safedriving.entity.enums.HitlStatus;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.HitlReviewCaseRepository;
+import com.safedriving.repository.SafetyAlertLogRepository;
 import com.safedriving.security.CustomUserDetails;
 import com.safedriving.service.HitlService;
 import com.safedriving.service.SseBroadcasterService;
@@ -30,13 +31,18 @@ import java.time.LocalDateTime;
 public class HitlServiceImpl implements HitlService {
 
     private final HitlReviewCaseRepository hitlReviewCaseRepository;
+    private final SafetyAlertLogRepository safetyAlertLogRepository;
     private final SseBroadcasterService sseBroadcasterService;
 
     @Override
     @Transactional(readOnly = true)
     public Page<HitlCaseResponse> getQueue(HitlStatus status, Pageable pageable) {
-        HitlStatus queryStatus = (status != null) ? status : HitlStatus.PENDING;
-        Page<HitlReviewCase> cases = hitlReviewCaseRepository.findByStatus(queryStatus, pageable);
+        Page<HitlReviewCase> cases;
+        if (status != null) {
+            cases = hitlReviewCaseRepository.findByStatus(status, pageable);
+        } else {
+            cases = hitlReviewCaseRepository.findAll(pageable);
+        }
         return cases.map(this::toHitlCaseResponse);
     }
 
@@ -70,6 +76,14 @@ public class HitlServiceImpl implements HitlService {
         sseBroadcasterService.broadcast("hitl_review", response);
 
         return response;
+    }
+
+    @Override
+    @Transactional
+    public void clearAll() {
+        hitlReviewCaseRepository.deleteAll();
+        safetyAlertLogRepository.deleteAll();
+        log.info("🗑️ Đã xóa sạch toàn bộ lịch sử vi phạm và safety_alert_log");
     }
 
     private HitlCaseResponse toHitlCaseResponse(HitlReviewCase reviewCase) {

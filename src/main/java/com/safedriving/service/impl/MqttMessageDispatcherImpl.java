@@ -177,17 +177,17 @@ public class MqttMessageDispatcherImpl implements MqttMessageDispatcher {
         log.info("🚨 [Alert Saved] ID={}, Vehicle={}, Type={}, Severity={}",
                 alertLog.getId(), vehicle.getPlateNumber(), alertType, severity);
 
-        // Nếu mức độ là HIGH hoặc CRITICAL, tự động đưa vào hàng đợi HITL (Human-in-the-Loop)
-        if (severity == IncidentSeverity.HIGH || severity == IncidentSeverity.CRITICAL) {
-            HitlReviewCase reviewCase = HitlReviewCase.builder()
-                    .alert(alertLog)
-                    .status(HitlStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            hitlReviewCaseRepository.save(reviewCase);
-            log.info("🔔 [HITL Auto-Created] Tạo ca kiểm duyệt PENDING: caseId={}, alertId={}",
-                    reviewCase.getId(), alertLog.getId());
-        }
+        // Tự động ghi nhận vi phạm trực tiếp (APPROVED) vào hệ thống mà không cần thẩm định thủ công
+        HitlReviewCase reviewCase = HitlReviewCase.builder()
+                .alert(alertLog)
+                .status(HitlStatus.APPROVED)
+                .reviewNotes("Tự động ghi nhận từ App")
+                .reviewedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
+        hitlReviewCaseRepository.save(reviewCase);
+        log.info("🔔 [Auto-Violation Recorded] Tự động ghi nhận vi phạm: caseId={}, alertId={}",
+                reviewCase.getId(), alertLog.getId());
 
         // Phát sóng sự kiện SSE xuống Web Dashboard
         sseBroadcasterService.broadcast("alert", root);

@@ -88,13 +88,17 @@ public class IncidentServiceImpl implements IncidentService {
     }
 
     private IncidentResponse mapToResponse(Incident entity) {
+        Trip trip = entity.getTrip();
         return IncidentResponse.builder()
                 .id(entity.getId())
-                .tripId(entity.getTrip().getId())
+                .tripId(trip.getId())
                 .timeIncident(entity.getTimeIncident())
                 .type(entity.getType())
                 .description(entity.getDescription())
                 .severity(entity.getSeverity())
+                .tripStartLocation(trip.getStartLocation())
+                .tripEndLocation(trip.getEndLocation())
+                .tripPlannedStartTime(trip.getPlannedStartTime())
                 .build();
     }
 }
