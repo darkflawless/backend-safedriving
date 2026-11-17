@@ -50,6 +50,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Tên đăng nhập hoặc mật khẩu không chính xác");
         }
 
+        if (account.getStatus() == AccountStatus.INACTIVE) {
+            throw new BadRequestException("Tài khoản đang tạm ngưng hoạt động.");
+        }
+
         if (account.getStatus() == AccountStatus.LOCKED) {
             throw new BadRequestException("Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.");
         }
@@ -70,7 +74,7 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("Người dùng {} đăng nhập thành công với vai trò {}", account.getUsername(), account.getRole());
 
-        StaffResponse staffResponse = staffRepository.findByAccountId(account.getId())
+        StaffResponse staffResponse = staffRepository.findByAccountIdAndIsDeletedFalse(account.getId())
                 .map(this::toStaffResponse)
                 .orElse(null);
 
@@ -96,7 +100,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(readOnly = true)
     public AuthResponse getMe(CustomUserDetails userDetails) {
         Account account = userDetails.getAccount();
-        StaffResponse staffResponse = staffRepository.findByAccountId(account.getId())
+        StaffResponse staffResponse = staffRepository.findByAccountIdAndIsDeletedFalse(account.getId())
                 .map(this::toStaffResponse)
                 .orElse(null);
 
@@ -239,6 +243,7 @@ public class AuthServiceImpl implements AuthService {
                 .exactAddress(staff.getExactAddress())
                 .commune(staff.getCommune())
                 .province(staff.getProvince())
+                .isActive(staff.getIsActive())
                 .account(accountInfo)
                 .createdAt(staff.getCreatedAt())
                 .build();
