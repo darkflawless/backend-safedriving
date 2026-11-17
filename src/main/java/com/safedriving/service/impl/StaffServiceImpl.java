@@ -5,11 +5,13 @@ import com.safedriving.dto.response.StaffAccountInfo;
 import com.safedriving.dto.response.StaffResponse;
 import com.safedriving.entity.Account;
 import com.safedriving.entity.Staff;
+import com.safedriving.entity.enums.AccountStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AccountRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.StaffRepository;
+import com.safedriving.service.FaceRecognitionService;
 import com.safedriving.service.StaffService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,12 +29,13 @@ public class StaffServiceImpl implements StaffService {
     private final StaffRepository staffRepository;
     private final AccountRepository accountRepository;
     private final DriverRepository driverRepository;
+    private final FaceRecognitionService faceRecognitionService;
 
     @Override
     @Transactional(readOnly = true)
     public List<StaffResponse> getAllStaff() {
-        log.info("Lấy danh sách tất cả cán bộ, nhân viên");
-        return staffRepository.findAll().stream()
+        log.info("Lấy danh sách tất cả cán bộ, nhân viên chưa bị xóa");
+        return staffRepository.findByIsDeletedFalse().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -71,6 +74,8 @@ public class StaffServiceImpl implements StaffService {
                 .exactAddress(request.getExactAddress() != null ? request.getExactAddress().trim() : null)
                 .commune(request.getCommune() != null ? request.getCommune().trim() : null)
                 .province(request.getProvince() != null ? request.getProvince().trim() : null)
+                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
+                .isDeleted(false)
                 .account(account)
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -84,7 +89,9 @@ public class StaffServiceImpl implements StaffService {
     @Transactional
     public StaffResponse updateStaff(String id, StaffRequest request) {
         log.info("Cập nhật hồ sơ nhân sự với ID: {}", id);
-        Staff staff = findStaffOrThrow(id);
+        // Cho phép tìm cả Staff kể cả đã bị xóa mềm để có thể khôi phục
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ nhân sự với ID: " + id));
 
         Account account = null;
         String accountId = request.resolveAccountId();
@@ -106,7 +113,40 @@ public class StaffServiceImpl implements StaffService {
         staff.setExactAddress(request.getExactAddress() != null ? request.getExactAddress().trim() : null);
         staff.setCommune(request.getCommune() != null ? request.getCommune().trim() : null);
         staff.setProvince(request.getProvince() != null ? request.getProvince().trim() : null);
-        staff.setAccount(account);
+
+        if (accountId != null) {
+            staff.setAccount(account);
+        }
+
+        // Xử lý đồng bộ trạng thái isActive / isDeleted
+        if (request.getIsActive() != null) {
+            boolean active = request.getIsActive();
+            staff.setIsActive(active);
+
+            if (active) {
+                // Khôi phục staff
+                staff.setIsDeleted(false);
+            }
+
+            // Đồng bộ sang Account
+            Account currentAccount = staff.getAccount();
+            if (currentAccount != null) {
+                currentAccount.setStatus(active ? AccountStatus.ACTIVE : AccountStatus.INACTIVE);
+                if (active) {
+                    currentAccount.setIsDeleted(false);
+                }
+                accountRepository.save(currentAccount);
+            }
+
+            // Đồng bộ sang Driver nếu nhân sự này là Driver
+            driverRepository.findByStaffId(staff.getId()).ifPresent(driver -> {
+                driver.setIsActive(active);
+                if (active) {
+                    driver.setIsDeleted(false);
+                }
+                driverRepository.save(driver);
+            });
+        }
 
         Staff updated = staffRepository.save(staff);
         log.info("Cập nhật hồ sơ nhân sự thành công cho ID: {}", updated.getId());
@@ -116,19 +156,38 @@ public class StaffServiceImpl implements StaffService {
     @Override
     @Transactional
     public void deleteStaff(String id) {
-        log.info("Xóa hồ sơ nhân sự với ID: {}", id);
+        log.info("Xóa mềm hồ sơ nhân sự với ID: {}", id);
         Staff staff = findStaffOrThrow(id);
 
-        if (driverRepository.existsByStaffId(id)) {
-            throw new BadRequestException("Không thể xóa nhân viên vì nhân viên này đang được phân công làm tài xế (Driver)");
+        // 1. Xóa mềm Staff
+        staff.setIsDeleted(true);
+        staff.setIsActive(false);
+        staffRepository.save(staff);
+
+        // 2. Vô hiệu hóa và xóa mềm Account liên kết để chặn hoàn toàn việc đăng nhập
+        if (staff.getAccount() != null) {
+            Account account = staff.getAccount();
+            account.setIsDeleted(true);
+            account.setStatus(AccountStatus.INACTIVE);
+            accountRepository.save(account);
+            log.info("Đã xóa mềm và chuyển INACTIVE cho Account liên kết ID: {}", account.getId());
         }
 
-        staffRepository.delete(staff);
-        log.info("Đã xóa hồ sơ nhân sự với ID: {}", id);
+        // 3. Nếu nhân sự này có hồ sơ tài xế (Driver), tiến hành xóa mềm Driver, gỡ xe và xóa face data
+        driverRepository.findByStaffId(id).ifPresent(driver -> {
+            driver.setIsDeleted(true);
+            driver.setIsActive(false);
+            driver.setVehicle(null);
+            driverRepository.save(driver);
+            faceRecognitionService.deleteDriver(driver.getId());
+            log.info("Đã đồng bộ xóa mềm hồ sơ tài xế ID: {} gắn liền với Staff ID: {}", driver.getId(), id);
+        });
+
+        log.info("Đã xóa mềm hoàn tất hồ sơ nhân sự với ID: {}", id);
     }
 
     private Staff findStaffOrThrow(String id) {
-        return staffRepository.findById(id)
+        return staffRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ nhân sự với ID: " + id));
     }
 
@@ -156,6 +215,7 @@ public class StaffServiceImpl implements StaffService {
                 .exactAddress(staff.getExactAddress())
                 .commune(staff.getCommune())
                 .province(staff.getProvince())
+                .isActive(staff.getIsActive())
                 .account(accountInfo)
                 .createdAt(staff.getCreatedAt())
                 .build();
