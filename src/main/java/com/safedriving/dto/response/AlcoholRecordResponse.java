@@ -25,6 +25,9 @@ public class AlcoholRecordResponse {
     @Schema(description = "Tên tài xế")
     private String driverName;
 
+    @Schema(description = "ID chuyến đi (nếu có)")
+    private String tripId;
+
     @Schema(description = "Chỉ số nồng độ cồn (mg/l khí thở)")
     private BigDecimal alcoholLevel;
 

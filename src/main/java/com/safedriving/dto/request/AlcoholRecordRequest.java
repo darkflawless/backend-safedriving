@@ -27,6 +27,9 @@ public class AlcoholRecordRequest {
     @Schema(description = "Chỉ số nồng độ cồn đo được (mg/l khí thở)", example = "0.0")
     private BigDecimal alcoholLevel;
 
+    @Schema(description = "ID chuyến đi (tùy chọn)", example = "trip-uuid")
+    private String tripId;
+
     @Schema(description = "Thời điểm đo đạc (Bỏ trống sẽ lấy giờ hiện tại)")
     private LocalDateTime measurementTime;
 
