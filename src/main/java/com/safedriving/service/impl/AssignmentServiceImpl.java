@@ -216,6 +216,17 @@ public class AssignmentServiceImpl implements AssignmentService {
         Driver driver = driverRepository.findById(request.getDriverId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế ID: " + request.getDriverId()));
 
+        // Kiểm tra trạng thái chuyến đi — chỉ cho phép cập nhật phân công khi chuyến đang PLANNED hoặc ASSIGNED
+        if (trip.getStatus() == TripStatus.COMPLETED) {
+            throw new BadRequestException("Chuyến đi đã hoàn thành, không thể cập nhật phân công.");
+        }
+        if (trip.getStatus() == TripStatus.CANCELLED) {
+            throw new BadRequestException("Chuyến đi đã bị hủy, không thể cập nhật phân công.");
+        }
+        if (trip.getStatus() == TripStatus.IN_PROGRESS) {
+            throw new BadRequestException("Chuyến đi đang trong quá trình thực hiện, không thể cập nhật phân công.");
+        }
+
         // Kiểm tra tài xế đã được gán phương tiện trong hồ sơ chưa
         if (driver.getVehicle() == null) {
             throw new BadRequestException("Tài xế này chưa được gán phương tiện! Vui lòng gán xe cho tài xế trước khi phân công chuyến đi.");
