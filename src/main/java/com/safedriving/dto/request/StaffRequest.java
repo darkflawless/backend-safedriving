@@ -53,6 +53,10 @@ public class StaffRequest {
     @Schema(description = "Tỉnh/Thành phố", example = "Hà Nội")
     private String province;
 
+    @Builder.Default
+    @Schema(description = "Trạng thái hoạt động (true: Đang hoạt động, false: Tạm ngưng)", example = "true")
+    private Boolean isActive = true;
+
     @Schema(description = "Đối tượng liên kết tài khoản dạng { id: ... }")
     private IdReference account;
 

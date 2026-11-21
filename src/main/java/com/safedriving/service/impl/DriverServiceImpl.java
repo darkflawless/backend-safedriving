@@ -204,11 +204,13 @@ public class DriverServiceImpl implements DriverService {
     @Transactional
     public DriverResponse updateDriver(String id, DriverRequest request) {
         log.info("Cập nhật hồ sơ tài xế với ID: {}", id);
-        Driver driver = findDriverOrThrow(id);
+        // Cho phép tìm driver kể cả đã bị xóa mềm để có thể khôi phục
+        Driver driver = driverRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hồ sơ tài xế với ID: " + id));
 
         String staffId = request.resolveStaffId();
         if (staffId != null && !staffId.isBlank()) {
-            if (!driver.getStaff().getId().equals(staffId)) {
+            if (driver.getStaff() == null || !driver.getStaff().getId().equals(staffId)) {
                 Staff staff = staffRepository.findById(staffId)
                         .orElseThrow(
                                 () -> new ResourceNotFoundException("Không tìm thấy hồ sơ nhân sự với ID: " + staffId));
@@ -237,7 +239,32 @@ public class DriverServiceImpl implements DriverService {
             driver.setUrlImage(request.getUrlImage().trim());
         }
         if (request.getIsActive() != null) {
-            driver.setIsActive(request.getIsActive());
+            boolean active = request.getIsActive();
+            driver.setIsActive(active);
+
+            if (active) {
+                // Khôi phục driver
+                driver.setIsDeleted(false);
+            }
+
+            // Đồng bộ sang Staff và Account
+            if (driver.getStaff() != null) {
+                Staff staff = driver.getStaff();
+                staff.setIsActive(active);
+                if (active) {
+                    staff.setIsDeleted(false);
+                }
+                staffRepository.save(staff);
+
+                if (staff.getAccount() != null) {
+                    Account account = staff.getAccount();
+                    account.setStatus(active ? AccountStatus.ACTIVE : AccountStatus.INACTIVE);
+                    if (active) {
+                        account.setIsDeleted(false);
+                    }
+                    accountRepository.save(account);
+                }
+            }
         }
 
         Driver updated = driverRepository.save(driver);
@@ -257,13 +284,21 @@ public class DriverServiceImpl implements DriverService {
         driver.setVehicle(null);
         driverRepository.save(driver);
 
-        // 2. Vô hiệu hóa tài khoản Account liên kết
-        if (driver.getStaff() != null && driver.getStaff().getAccount() != null) {
-            Account account = driver.getStaff().getAccount();
-            account.setStatus(AccountStatus.INACTIVE);
-            account.setIsDeleted(true);
-            accountRepository.save(account);
-            log.info("Đã vô hiệu hóa tài khoản liên kết với tài xế: {}", account.getUsername());
+        // 2. Xóa mềm Staff liên kết + vô hiệu hóa Account
+        if (driver.getStaff() != null) {
+            Staff staff = driver.getStaff();
+            staff.setIsActive(false);
+            staff.setIsDeleted(true);
+            staffRepository.save(staff);
+            log.info("Đã xóa mềm Staff liên kết với tài xế ID: {}", staff.getId());
+
+            if (staff.getAccount() != null) {
+                Account account = staff.getAccount();
+                account.setStatus(AccountStatus.INACTIVE);
+                account.setIsDeleted(true);
+                accountRepository.save(account);
+                log.info("Đã vô hiệu hóa tài khoản liên kết với tài xế: {}", account.getUsername());
+            }
         }
 
         // 3. Xóa dữ liệu khuôn mặt trong file .pkl và RAM của FastAPI AI
@@ -304,6 +339,7 @@ public class DriverServiceImpl implements DriverService {
                     .exactAddress(staff.getExactAddress())
                     .commune(staff.getCommune())
                     .province(staff.getProvince())
+                    .isActive(staff.getIsActive())
                     .account(accountInfo)
                     .createdAt(staff.getCreatedAt())
                     .build();

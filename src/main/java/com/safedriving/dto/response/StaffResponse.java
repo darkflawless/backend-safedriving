@@ -52,6 +52,9 @@ public class StaffResponse {
     @Schema(description = "Tỉnh/Thành phố")
     private String province;
 
+    @Schema(description = "Trạng thái hoạt động (true: Đang hoạt động, false: Tạm ngưng)")
+    private Boolean isActive;
+
     @Schema(description = "Thông tin tài khoản đăng nhập")
     private StaffAccountInfo account;
 

@@ -144,6 +144,16 @@ public class TripServiceImpl implements TripService {
         Trip trip = tripRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + id));
 
+        if (trip.getStatus() == TripStatus.COMPLETED) {
+            throw new BadRequestException("Chuyến đi đã hoàn thành, không thể chỉnh sửa thông tin.");
+        }
+        if (trip.getStatus() == TripStatus.CANCELLED) {
+            throw new BadRequestException("Chuyến đi đã bị hủy, không thể chỉnh sửa thông tin.");
+        }
+        if (trip.getStatus() == TripStatus.IN_PROGRESS) {
+            throw new BadRequestException("Chuyến đi đang trong quá trình thực hiện, không thể chỉnh sửa thông tin.");
+        }
+
         trip.setStartLocation(request.getStartLocation());
         trip.setEndLocation(request.getEndLocation());
 
@@ -172,14 +182,6 @@ public class TripServiceImpl implements TripService {
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Không tìm thấy tài xế với ID: " + request.getDriverId()));
             trip.setDriver(driver);
-
-            Assignment assignment = Assignment.builder()
-                    .trip(trip)
-                    .driver(driver)
-                    .assignmentAt(LocalDateTime.now())
-                    .isDeleted(false)
-                    .build();
-            assignmentRepository.save(assignment);
         }
 
         if (request.getStatus() != null) {

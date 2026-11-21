@@ -56,5 +56,11 @@ public class Staff extends BaseUuidEntity {
     private Account account;
 
     @lombok.Builder.Default
+    private Boolean isActive = true;
+
+    @lombok.Builder.Default
+    private Boolean isDeleted = false;
+
+    @lombok.Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

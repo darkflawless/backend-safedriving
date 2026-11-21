@@ -15,6 +15,8 @@ public interface DriverRepository extends JpaRepository<Driver, String> {
 
     boolean existsByStaffId(String staffId);
 
+    boolean existsByStaffIdAndIsDeletedFalse(String staffId);
+
     boolean existsByStaffIdAndIdNot(String staffId, String id);
 
     Optional<Driver> findByStaffId(String staffId);

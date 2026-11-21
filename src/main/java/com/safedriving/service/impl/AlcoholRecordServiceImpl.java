@@ -4,10 +4,12 @@ import com.safedriving.dto.request.AlcoholRecordRequest;
 import com.safedriving.dto.response.AlcoholRecordResponse;
 import com.safedriving.entity.AlcoholRecord;
 import com.safedriving.entity.Driver;
+import com.safedriving.entity.Trip;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AlcoholRecordRepository;
 import com.safedriving.repository.DriverRepository;
+import com.safedriving.repository.TripRepository;
 import com.safedriving.service.AlcoholRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
 
     private final AlcoholRecordRepository alcoholRecordRepository;
     private final DriverRepository driverRepository;
+    private final TripRepository tripRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -61,8 +64,15 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
         Driver driver = driverRepository.findByIdAndIsDeletedFalse(request.getDriverId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài xế với ID: " + request.getDriverId()));
 
+        Trip trip = null;
+        if (request.getTripId() != null && !request.getTripId().isBlank()) {
+            trip = tripRepository.findByIdAndIsDeletedFalse(request.getTripId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + request.getTripId()));
+        }
+
         AlcoholRecord record = AlcoholRecord.builder()
                 .driver(driver)
+                .trip(trip)
                 .alcoholLevel(request.getAlcoholLevel())
                 .measurementTime(request.getMeasurementTime() != null ? request.getMeasurementTime() : LocalDateTime.now())
                 .notes(request.getNotes())
@@ -89,6 +99,16 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
 
         if (request.getNotes() != null) {
             record.setNotes(request.getNotes());
+        }
+
+        if (request.getTripId() != null) {
+            if (request.getTripId().isBlank()) {
+                record.setTrip(null);
+            } else if (record.getTrip() == null || !record.getTrip().getId().equals(request.getTripId())) {
+                Trip trip = tripRepository.findByIdAndIsDeletedFalse(request.getTripId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chuyến đi với ID: " + request.getTripId()));
+                record.setTrip(trip);
+            }
         }
 
         if (request.getDriverId() != null && !request.getDriverId().isBlank() && !record.getDriver().getId().equals(request.getDriverId())) {
@@ -126,6 +146,7 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
                 .id(record.getId())
                 .driverId(record.getDriver() != null ? record.getDriver().getId() : null)
                 .driverName(driverName)
+                .tripId(record.getTrip() != null ? record.getTrip().getId() : null)
                 .alcoholLevel(record.getAlcoholLevel())
                 .measurementTime(record.getMeasurementTime())
                 .notes(record.getNotes())

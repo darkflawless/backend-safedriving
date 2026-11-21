@@ -9,6 +9,7 @@ import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AlcoholRecordRepository;
 import com.safedriving.repository.DriverRepository;
+import com.safedriving.repository.TripRepository;
 import com.safedriving.service.impl.AlcoholRecordServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,9 @@ class AlcoholRecordServiceTest {
 
     @Mock
     private DriverRepository driverRepository;
+
+    @Mock
+    private TripRepository tripRepository;
 
     @InjectMocks
     private AlcoholRecordServiceImpl alcoholRecordService;
