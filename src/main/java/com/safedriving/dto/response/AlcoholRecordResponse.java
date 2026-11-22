@@ -31,6 +31,9 @@ public class AlcoholRecordResponse {
     @Schema(description = "Chỉ số nồng độ cồn (mg/l khí thở)")
     private BigDecimal alcoholLevel;
 
+    @Schema(description = "Cảnh báo vi phạm nồng độ cồn (> 0 mg/l)")
+    private Boolean violation;
+
     @Schema(description = "Thời điểm đo đạc")
     private LocalDateTime measurementTime;
 

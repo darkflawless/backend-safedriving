@@ -3,20 +3,25 @@ package com.safedriving.service.impl;
 import com.safedriving.dto.request.AlcoholRecordRequest;
 import com.safedriving.dto.response.AlcoholRecordResponse;
 import com.safedriving.entity.AlcoholRecord;
+import com.safedriving.entity.Assignment;
 import com.safedriving.entity.Driver;
 import com.safedriving.entity.Trip;
+import com.safedriving.entity.enums.TripStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AlcoholRecordRepository;
+import com.safedriving.repository.AssignmentRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.TripRepository;
 import com.safedriving.service.AlcoholRecordService;
+import com.safedriving.websocket.RealTimeBroadcaster;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,6 +33,8 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
     private final AlcoholRecordRepository alcoholRecordRepository;
     private final DriverRepository driverRepository;
     private final TripRepository tripRepository;
+    private final AssignmentRepository assignmentRepository;
+    private final RealTimeBroadcaster realTimeBroadcaster;
 
     @Override
     @Transactional(readOnly = true)
@@ -80,6 +87,48 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
 
         AlcoholRecord saved = alcoholRecordRepository.save(record);
         log.info("Đã ghi nhận nồng độ cồn thành công, Record ID: {}", saved.getId());
+
+        // Kiểm tra vi phạm nồng độ cồn (> 0.00 mg/L)
+        boolean hasViolation = request.getAlcoholLevel() != null && request.getAlcoholLevel().compareTo(BigDecimal.ZERO) > 0;
+        if (hasViolation) {
+            String driverName = null;
+            if (driver.getStaff() != null) {
+                driverName = driver.getStaff().getFirstName() + " " + driver.getStaff().getLastName();
+            }
+
+            // Nếu gắn với chuyến đi: chuyển trạng thái sang REASSIGN_REQUIRED, gỡ tài xế khỏi chuyến và xóa phân công cũ
+            if (trip != null) {
+                log.warn("Tài xế {} vi phạm nồng độ cồn ({} mg/L). Chuyển chuyến đi {} sang REASSIGN_REQUIRED và gỡ tài xế.",
+                        driver.getId(), request.getAlcoholLevel(), trip.getId());
+                trip.setStatus(TripStatus.REASSIGN_REQUIRED);
+                trip.setDriver(null);
+                trip.setStartTime(null);
+                tripRepository.save(trip);
+
+                // Xóa mềm các phân công cũ liên quan đến chuyến đi này trong bảng Assignment
+                List<Assignment> activeAssignments = assignmentRepository.findByTripIdAndIsDeletedFalse(trip.getId());
+                if (activeAssignments != null && !activeAssignments.isEmpty()) {
+                    for (Assignment a : activeAssignments) {
+                        a.setIsDeleted(true);
+                    }
+                    assignmentRepository.saveAll(activeAssignments);
+                    log.info("Đã xóa {} phân công cũ của chuyến đi {}", activeAssignments.size(), trip.getId());
+                }
+            }
+
+            // Gửi cảnh báo Realtime về Web Admin
+            try {
+                realTimeBroadcaster.sendAlcoholViolationAlert(
+                        trip != null ? trip.getId() : null,
+                        driver.getId(),
+                        driverName,
+                        request.getAlcoholLevel()
+                );
+            } catch (Exception e) {
+                log.error("Không thể gửi cảnh báo WebSocket nồng độ cồn: {}", e.getMessage());
+            }
+        }
+
         return toResponse(saved);
     }
 
@@ -142,12 +191,15 @@ public class AlcoholRecordServiceImpl implements AlcoholRecordService {
             driverName = record.getDriver().getStaff().getFirstName() + " " + record.getDriver().getStaff().getLastName();
         }
 
+        boolean violation = record.getAlcoholLevel() != null && record.getAlcoholLevel().compareTo(BigDecimal.ZERO) > 0;
+
         return AlcoholRecordResponse.builder()
                 .id(record.getId())
                 .driverId(record.getDriver() != null ? record.getDriver().getId() : null)
                 .driverName(driverName)
                 .tripId(record.getTrip() != null ? record.getTrip().getId() : null)
                 .alcoholLevel(record.getAlcoholLevel())
+                .violation(violation)
                 .measurementTime(record.getMeasurementTime())
                 .notes(record.getNotes())
                 .build();

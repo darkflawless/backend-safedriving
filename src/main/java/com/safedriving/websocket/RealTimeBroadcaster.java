@@ -39,4 +39,18 @@ public class RealTimeBroadcaster {
                 driverId, alertMsg);
         realTimeHandler.broadcastToWeb(json);
     }
+
+    /** Gửi cảnh báo tài xế vi phạm nồng độ cồn trước chuyến đi */
+    public void sendAlcoholViolationAlert(String tripId, String driverId, String driverName, java.math.BigDecimal alcoholLevel) {
+        String json = String.format(
+                "{\"type\":\"ALCOHOL_VIOLATION_ALERT\",\"tripId\":\"%s\",\"driverId\":\"%s\",\"driverName\":\"%s\",\"alcoholLevel\":%s,\"message\":\"CẢNH BÁO: Tài xế %s vi phạm nồng độ cồn (%s mg/L). Chuyến đi %s đã chuyển sang trạng thái REASSIGN_REQUIRED và gỡ bỏ tài xế.\"}",
+                tripId != null ? tripId : "",
+                driverId != null ? driverId : "",
+                driverName != null ? driverName : "",
+                alcoholLevel != null ? alcoholLevel.toPlainString() : "0.0",
+                driverName != null ? driverName : "N/A",
+                alcoholLevel != null ? alcoholLevel.toPlainString() : "0.0",
+                tripId != null ? tripId : "");
+        realTimeHandler.broadcastToWeb(json);
+    }
 }

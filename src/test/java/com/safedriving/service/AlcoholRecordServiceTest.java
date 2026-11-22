@@ -5,12 +5,16 @@ import com.safedriving.dto.response.AlcoholRecordResponse;
 import com.safedriving.entity.AlcoholRecord;
 import com.safedriving.entity.Driver;
 import com.safedriving.entity.Staff;
+import com.safedriving.entity.Trip;
+import com.safedriving.entity.enums.TripStatus;
 import com.safedriving.exception.BadRequestException;
 import com.safedriving.exception.ResourceNotFoundException;
 import com.safedriving.repository.AlcoholRecordRepository;
+import com.safedriving.repository.AssignmentRepository;
 import com.safedriving.repository.DriverRepository;
 import com.safedriving.repository.TripRepository;
 import com.safedriving.service.impl.AlcoholRecordServiceImpl;
+import com.safedriving.websocket.RealTimeBroadcaster;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,8 +31,11 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +50,12 @@ class AlcoholRecordServiceTest {
 
     @Mock
     private TripRepository tripRepository;
+
+    @Mock
+    private AssignmentRepository assignmentRepository;
+
+    @Mock
+    private RealTimeBroadcaster realTimeBroadcaster;
 
     @InjectMocks
     private AlcoholRecordServiceImpl alcoholRecordService;
@@ -126,6 +139,46 @@ class AlcoholRecordServiceTest {
         assertNotNull(response);
         assertEquals(2L, response.getId());
         assertEquals(new BigDecimal("0.5"), response.getAlcoholLevel());
+        assertTrue(response.getViolation());
+    }
+
+    @Test
+    @DisplayName("createAlcoholRecord - Violation With Trip Reassignment")
+    void createAlcoholRecord_ViolationWithTrip() {
+        Trip trip = Trip.builder()
+                .id("trip-123")
+                .driver(testDriver)
+                .status(TripStatus.IN_PROGRESS)
+                .startTime(LocalDateTime.now())
+                .build();
+
+        AlcoholRecordRequest request = AlcoholRecordRequest.builder()
+                .driverId("driver-1")
+                .tripId("trip-123")
+                .alcoholLevel(new BigDecimal("0.15"))
+                .build();
+
+        when(driverRepository.findByIdAndIsDeletedFalse("driver-1")).thenReturn(Optional.of(testDriver));
+        when(tripRepository.findByIdAndIsDeletedFalse("trip-123")).thenReturn(Optional.of(trip));
+        when(alcoholRecordRepository.save(any(AlcoholRecord.class))).thenAnswer(i -> {
+            AlcoholRecord r = i.getArgument(0);
+            r.setId(3L);
+            return r;
+        });
+
+        AlcoholRecordResponse response = alcoholRecordService.createAlcoholRecord(request);
+
+        assertNotNull(response);
+        assertEquals(3L, response.getId());
+        assertTrue(response.getViolation());
+        assertEquals("trip-123", response.getTripId());
+
+        // Verify trip was updated to REASSIGN_REQUIRED and driver was cleared
+        assertEquals(TripStatus.REASSIGN_REQUIRED, trip.getStatus());
+        assertNull(trip.getDriver());
+        assertNull(trip.getStartTime());
+        verify(tripRepository).save(trip);
+        verify(realTimeBroadcaster).sendAlcoholViolationAlert(eq("trip-123"), eq("driver-1"), any(), eq(new BigDecimal("0.15")));
     }
 
     @Test

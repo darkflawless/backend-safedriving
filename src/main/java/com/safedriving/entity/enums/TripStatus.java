@@ -1,5 +1,5 @@
 package com.safedriving.entity.enums;
 
 public enum TripStatus {
-    PLANNED, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED
+    PLANNED, ASSIGNED, IN_PROGRESS, COMPLETED, CANCELLED, REASSIGN_REQUIRED
 }
