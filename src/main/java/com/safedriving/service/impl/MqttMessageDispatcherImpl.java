@@ -231,12 +231,16 @@ public class MqttMessageDispatcherImpl implements MqttMessageDispatcher {
         // Phát sóng tức thời tọa độ GPS xe tới các Client Dashboard
         sseBroadcasterService.broadcast("gps", root);
 
-        // Kiểm tra Geofence Điểm đen tai nạn (bán kính 200m)
+        // Kiểm tra Geofence Điểm đen tai nạn (hỗ trợ cả payload phẳng và payload lồng trong node "gps" từ Android App)
         try {
             String vehicleId = root.path("vehicle_id").asText(null);
-            Double lat = root.has("latitude") ? root.get("latitude").asDouble() : null;
-            Double lng = root.has("longitude") ? root.get("longitude").asDouble() : null;
-            Double speed = root.has("speed_kmh") ? root.get("speed_kmh").asDouble() : 0.0;
+            JsonNode gpsNode = root.path("gps");
+            Double lat = root.has("latitude") ? root.get("latitude").asDouble()
+                    : (gpsNode.has("latitude") ? gpsNode.get("latitude").asDouble() : null);
+            Double lng = root.has("longitude") ? root.get("longitude").asDouble()
+                    : (gpsNode.has("longitude") ? gpsNode.get("longitude").asDouble() : null);
+            Double speed = root.has("speed_kmh") ? root.get("speed_kmh").asDouble()
+                    : (gpsNode.has("speed_kmh") ? gpsNode.get("speed_kmh").asDouble() : 0.0);
             if (vehicleId != null && lat != null && lng != null) {
                 geofenceService.checkBlackspotGeofence(vehicleId, lat, lng, speed);
             }

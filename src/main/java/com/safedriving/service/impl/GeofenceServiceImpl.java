@@ -44,9 +44,9 @@ public class GeofenceServiceImpl implements GeofenceService {
     private final MqttPublisherService mqttPublisherService;
     private final ObjectMapper objectMapper;
 
-    // Cooldown 45 giây cho mỗi cặp (vehicleId, blackspotId) để tránh spam cảnh báo liên tục khi xe di chuyển trong vùng
+    // Cooldown 15 giây cho mỗi cặp (vehicleId, blackspotId) để tránh spam liên tục nhưng vẫn phản hồi nhanh khi demo
     private final Map<String, Long> alertCooldownMap = new ConcurrentHashMap<>();
-    private static final long COOLDOWN_MS = 45_000L;
+    private static final long COOLDOWN_MS = 15_000L;
 
     @Override
     public List<AccidentBlackspot> getActiveBlackspots() {
@@ -161,8 +161,12 @@ public class GeofenceServiceImpl implements GeofenceService {
             sseBroadcasterService.broadcast("geofence_warning", alertPayload);
 
             // 4. Bắn MQTT thông báo xuống Điện thoại Android (AppDetect)
-            String targetTopic = String.format("driverguard/warnings/%s", vehicle != null ? vehicle.getId() : vehicleId);
+            String resolvedVehicleId = vehicle != null ? vehicle.getId() : vehicleId;
+            String targetTopic = String.format("driverguard/warnings/%s", resolvedVehicleId);
             mqttPublisherService.publish(targetTopic, jsonPayload);
+            if (!resolvedVehicleId.equals(vehicleId)) {
+                mqttPublisherService.publish(String.format("driverguard/warnings/%s", vehicleId), jsonPayload);
+            }
             mqttPublisherService.publish("driverguard/warnings/all", jsonPayload);
 
             log.info("📢 Đã phát cảnh báo Geofence thành công tới SSE và MQTT topic [{}]", targetTopic);
